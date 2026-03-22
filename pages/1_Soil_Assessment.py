@@ -154,8 +154,8 @@ with st.expander("📍 Step 1: Site Location & Soil Survey Lookup", expanded=Tru
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 2 — CROP & LAB SELECTION
 # ─────────────────────────────────────────────────────────────────────────────
-with st.expander("🌿 Step 2: Crop Type, Laboratory & Reporting Units", expanded=True):
-    col1, col2, col3 = st.columns(3)
+with st.expander("🌿 Step 2: Crop Type & Laboratory", expanded=True):
+    col1, col2 = st.columns(2)
 
     with col1:
         crop = st.selectbox(
@@ -172,29 +172,10 @@ with st.expander("🌿 Step 2: Crop Type, Laboratory & Reporting Units", expande
             help="Selects the conversion method for P and K. Modified Morgan values are multiplied by 2.2 (P) and 1.2 (K) to estimate Mehlich III equivalents.",
         )
 
-    with col3:
-        report_unit = st.selectbox(
-            "Lab Report Units (for mineral nutrients)",
-            list(UNIT_CONVERSIONS.keys()),
-            key="unit_select",
-            help=(
-                "Select the unit your lab uses for mineral nutrients (P, K, Ca, Mg, etc.).\n\n"
-                "• ppm (mg/kg) — most common for Mehlich III labs\n"
-                "• lbs/acre — some labs report this instead of ppm (divide by 2 to get ppm)\n"
-                "• kg/ha — metric equivalent\n\n"
-                "pH, Organic Matter %, CEC (meq/100g), and Base Saturation % are always "
-                "entered in their own fixed units regardless of this selection."
-            ),
-        )
-
     crop_key = "hemp" if "Hemp" in crop else "mj"
 
-    # Contextual notes
     if "Modified Morgan" in lab:
         st.info("ℹ️ **Modified Morgan detected.** P will be multiplied ×2.2 and K ×1.2 to approximate Mehlich III before comparing to targets.")
-    if report_unit != "ppm (mg/kg)":
-        factor = UNIT_CONVERSIONS[report_unit]
-        st.info(f"ℹ️ **Unit conversion active:** values entered in *{report_unit}* will be multiplied by {factor} to convert to ppm before comparison.")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 3 — SOIL TEST INPUT
@@ -202,12 +183,76 @@ with st.expander("🌿 Step 2: Crop Type, Laboratory & Reporting Units", expande
 with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
     st.markdown(
         "Enter values from your lab report. Leave blank if not measured. "
-        "**pH, Organic Matter, CEC, and Base Saturation** always use their own units "
-        f"— all other nutrients should be entered in **{report_unit}**."
+        "**pH, Organic Matter %, CEC, and Base Saturation %** always use their own fixed units. "
+        "For all other sections, select the unit your lab report uses."
     )
 
     lab_factors = LAB_FACTORS.get(lab, {})
-    unit_factor = UNIT_CONVERSIONS.get(report_unit, 1.0)
+
+    # ── Section unit selectors ────────────────────────────────────────────
+    unit_options = list(UNIT_CONVERSIONS.keys())
+    unit_help = (
+        "• ppm (mg/kg) — most common for Mehlich III labs\n"
+        "• lbs/acre — some labs report exchangeable cations this way\n"
+        "• kg/ha — metric equivalent\n\n"
+        "The app will automatically convert to ppm before comparing to targets."
+    )
+
+    u_col1, u_col2, u_col3 = st.columns(3)
+    with u_col1:
+        unit_macro = st.selectbox(
+            "Macronutrient units (P, K, Ca, Mg, S)",
+            unit_options, key="unit_macro", help=unit_help,
+        )
+    with u_col2:
+        unit_micro = st.selectbox(
+            "Micronutrient units (Zn, Mn, Fe, Cu, B)",
+            unit_options, key="unit_micro", help=unit_help,
+        )
+    with u_col3:
+        unit_salts = st.selectbox(
+            "Salts & Other units (Na, Al)",
+            unit_options, key="unit_salts", help=unit_help,
+        )
+
+    # Map each nutrient to its section unit factor
+    section_units = {
+        "P (Phosphorus)":    unit_macro,
+        "K (Potassium)":     unit_macro,
+        "Ca (Calcium)":      unit_macro,
+        "Mg (Magnesium)":    unit_macro,
+        "S (Sulfur)":        unit_macro,
+        "Zn (Zinc)":         unit_micro,
+        "Mn (Manganese)":    unit_micro,
+        "Fe (Iron)":         unit_micro,
+        "Cu (Copper)":       unit_micro,
+        "B (Boron)":         unit_micro,
+        "Na (Sodium)":       unit_salts,
+        "Al (Aluminum)":     unit_salts,
+    }
+
+    st.divider()
+
+    # ── Per-nutrient help text ────────────────────────────────────────────
+    help_texts = {
+        "pH":                  "Dimensionless. Look for 'pH', 'Soil pH', or 'pH (1:1 water)' on your report.",
+        "Organic Matter":      "Always enter as %. Look for 'Organic Matter %' or 'OM %'.",
+        "P (Phosphorus)":      f"Dairy One: use 'Mod. Morgan P. ppm' column. Modified Morgan values will be auto-converted (×2.2).",
+        "K (Potassium)":       f"Dairy One: use 'Mod. Morgan K. ppm' column. Modified Morgan values will be auto-converted (×1.2).",
+        "Ca (Calcium)":        f"Dairy One: use 'Mod. Morgan Ca. ppm'. This is NOT the same as Base Saturation Ca%.",
+        "Mg (Magnesium)":      f"Dairy One: use 'Mod. Morgan Mg. ppm'.",
+        "S (Sulfur)":          f"Dairy One: use 'Mod. Morgan S. ppm'.",
+        "Zn (Zinc)":           f"Dairy One: use 'Mod. Morgan Zn. ppm'.",
+        "Mn (Manganese)":      f"Dairy One: use 'Mod. Morgan Mn. ppm'.",
+        "Fe (Iron)":           f"Dairy One: use 'Mod. Morgan Fe. ppm'.",
+        "Cu (Copper)":         f"Dairy One: use 'Mod. Morgan Cu. ppm'.",
+        "B (Boron)":           f"Dairy One: use 'HWS Boron' or 'Mod. Morgan B. ppm'.",
+        "Na (Sodium)":         f"Dairy One: use 'Mod. Morgan Na. ppm'.",
+        "Al (Aluminum)":       f"Dairy One: use 'Mod. Morgan Al. ppm'.",
+        "CEC":                 "Always enter in meq/100g. Also reported as 'Total Exchange Capacity (M.E.)' or 'T.E.C.' on some lab reports — these are the same thing.",
+        "Base Saturation Ca%": "Always enter as %. This is the % of CEC occupied by Ca ions — different from Ca in ppm.",
+        "Base Saturation K%":  "Always enter as %. This is the % of CEC occupied by K ions — different from K in ppm.",
+    }
 
     groups = {
         "Basic Properties": ["pH", "Organic Matter"],
@@ -216,28 +261,9 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
         "Salts & Other":    ["Na (Sodium)", "Al (Aluminum)", "CEC", "Base Saturation Ca%", "Base Saturation K%"],
     }
 
-    # Build per-nutrient help text
-    help_texts = {
-        "pH":                   "Dimensionless. Look for 'pH', 'Soil pH', or 'pH (1:1 water)' on your report.",
-        "Organic Matter":       "Always enter as %. Look for 'Organic Matter %' or 'OM %'.",
-        "P (Phosphorus)":       f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan P. ppm' column. Modified Morgan values will be auto-converted (×2.2).",
-        "K (Potassium)":        f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan K. ppm' column. Modified Morgan values will be auto-converted (×1.2).",
-        "Ca (Calcium)":         f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Ca. ppm'. This is NOT the same as Base Saturation Ca%.",
-        "Mg (Magnesium)":       f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Mg. ppm'.",
-        "S (Sulfur)":           f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan S. ppm'.",
-        "Zn (Zinc)":            f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Zn. ppm'.",
-        "Mn (Manganese)":       f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Mn. ppm'.",
-        "Fe (Iron)":            f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Fe. ppm'.",
-        "Cu (Copper)":          f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Cu. ppm'.",
-        "B (Boron)":            f"Enter in {report_unit}. Dairy One: use 'HWS Boron' or 'Mod. Morgan B. ppm'.",
-        "Na (Sodium)":          f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Na. ppm'.",
-        "Al (Aluminum)":        f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Al. ppm'.",
-        "CEC":                  "Always enter in meq/100g. Also reported as 'Total Exchange Capacity (M.E.)' or 'T.E.C.' on some lab reports — these are the same thing.",
-        "Base Saturation Ca%":  "Always enter as %. This is the % of CEC occupied by Ca ions — different from Ca in ppm.",
-        "Base Saturation K%":   "Always enter as %. This is the % of CEC occupied by K ions — different from K in ppm.",
-    }
+    user_values  = {}
+    section_unit_map = {}   # nname → unit string (for gap analysis)
 
-    user_values = {}
     for group_name, nutrient_names in groups.items():
         st.markdown(f"**{group_name}**")
         cols = st.columns(min(len(nutrient_names), 4))
@@ -247,15 +273,20 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
                 continue
             col = cols[i % 4]
             with col:
-                # Determine display unit
+                # Display unit: fixed for non-convertible, section unit for others
                 if not nutrient["allow_unit_conversion"]:
                     display_unit = nutrient["unit"]
                 else:
-                    display_unit = report_unit
-                # MM conversion flag
-                mm_note = " *(MM→M3 auto)*" if nname in lab_factors else ""
+                    display_unit = section_units.get(nname, "ppm (mg/kg)")
+
+                section_unit_map[nname] = display_unit
+                mm_note = " *(MM→M3)*" if nname in lab_factors else ""
+
+                # Special label for CEC
+                label = "CEC / Total Exchange Capacity (M.E.)" if nname == "CEC" else nname
+
                 val = st.number_input(
-                    f"{nname} [{display_unit}]{mm_note}",
+                    f"{label} [{display_unit}]{mm_note}",
                     min_value=0.0,
                     max_value=50000.0,
                     value=None,
@@ -278,10 +309,9 @@ if run_btn:
 
 if st.session_state.assessment_done:
     st.markdown("## 📊 Gap Analysis Results")
-    st.caption(f"Crop: **{crop}** | Lab: **{lab}** | Input units: **{report_unit}**")
+    st.caption(f"Crop: **{crop}** | Lab: **{lab}**")
 
-    lab_factors  = LAB_FACTORS.get(lab, {})
-    unit_factor  = UNIT_CONVERSIONS.get(report_unit, 1.0)
+    lab_factors = LAB_FACTORS.get(lab, {})
 
     rows = []
     deficient_nutrients = []
@@ -304,8 +334,9 @@ if st.session_state.assessment_done:
             })
             continue
 
-        # 1. Convert reporting unit → ppm (only for nutrients that allow it)
-        unit_conv = unit_factor if n["allow_unit_conversion"] else 1.0
+        # 1. Convert section unit → ppm (only for nutrients that allow it)
+        entered_unit = section_unit_map.get(nname, "ppm (mg/kg)")
+        unit_conv    = UNIT_CONVERSIONS.get(entered_unit, 1.0) if n["allow_unit_conversion"] else 1.0
         # 2. Apply Modified Morgan → Mehlich III factor
         mm_conv   = lab_factors.get(nname, 1.0)
         converted = round(raw * unit_conv * mm_conv, 2)
@@ -322,7 +353,8 @@ if st.session_state.assessment_done:
         else:
             status = "✓ ADEQUATE"
 
-        show_conv = converted if (unit_conv != 1.0 or mm_conv != 1.0) else "—"
+        needs_conv = (unit_conv != 1.0 or mm_conv != 1.0)
+        show_conv  = converted if needs_conv else "—"
         rows.append({
             "Nutrient":         nname,
             "Unit (target)":    n["unit"],
