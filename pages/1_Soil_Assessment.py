@@ -1,6 +1,5 @@
 """
 1_Soil_Assessment.py — NY Cannabis/Hemp Soil Assessment Tool
-Multi-page Streamlit app page.
 """
 
 import sys
@@ -10,7 +9,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import streamlit as st
 import pandas as pd
 
-from utils.nutrient_data import NUTRIENTS, AMENDMENTS, QUICK_AMEND, LAB_FACTORS
+from utils.nutrient_data import (
+    NUTRIENTS, AMENDMENTS, QUICK_AMEND, LAB_FACTORS, UNIT_CONVERSIONS
+)
 from utils.soil_api import get_soil_data
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -23,27 +24,60 @@ st.set_page_config(
 # ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
+.disclaimer-box {
+    background: #fff3cd;
+    border: 2px solid #e0a800;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    font-size: 0.92rem;
+}
+.disclaimer-box b { color: #856404; }
 .deficient  { background-color: #ffd6d6; color: #8b0000; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
 .adequate   { background-color: #d6f0d6; color: #006400; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
 .excess     { background-color: #fff3cd; color: #856404; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
-.nodata     { color: #888; font-style: italic; }
 .soil-card  { background: #f0f7ff; border-left: 4px solid #1565C0; padding: 12px 16px; border-radius: 6px; margin-bottom: 12px; }
-.amend-card { background: #fff8e1; border-left: 4px solid #e65100; padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; }
+.amend-card { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+.amend-card h4 { margin: 0 0 6px 0; }
+.tag { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 0.78rem; font-weight: bold; margin-right: 4px; }
+.tag-organic    { background: #d4edda; color: #155724; }
+.tag-synthetic  { background: #e2e3e5; color: #383d41; }
+.tag-powder     { background: #cfe2ff; color: #084298; }
+.tag-liquid     { background: #d1ecf1; color: #0c5460; }
+.tag-granular   { background: #fff3cd; color: #856404; }
+.tag-pellet     { background: #f8d7da; color: #721c24; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Session state init ────────────────────────────────────────────────────────
-if "soil_data" not in st.session_state:
-    st.session_state.soil_data = None
-if "assessment_done" not in st.session_state:
-    st.session_state.assessment_done = False
+# ── Session state ─────────────────────────────────────────────────────────────
+if "soil_data"       not in st.session_state: st.session_state.soil_data       = None
+if "assessment_done" not in st.session_state: st.session_state.assessment_done = False
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PAGE HEADER
+# DISCLAIMER — TOP OF PAGE
 # ─────────────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="disclaimer-box">
+<b>⚠️ Important Disclaimer — Please Read Before Using This Tool</b><br><br>
+This tool provides <b>general agronomic guidance only</b>, based on cannabis and hemp
+soil fertility literature and NY State extension frameworks.
+<b>The suggestions presented here are possible options, not prescriptions.</b>
+Results should be interpreted by a qualified professional before any action is taken.<br><br>
+<b>This tool and its developers assume no responsibility or liability</b> for any
+decisions, actions, crop losses, financial outcomes, or regulatory consequences
+arising from the use of this tool. Targets and recommendations are based on
+Mehlich III (or converted equivalent) extractions at the surface horizon (0–20 cm / 0–8 in)
+and may not reflect the full complexity of your specific field conditions.<br><br>
+Always consult a <b>certified crop advisor (CCA)</b>, licensed agronomist, or your local
+Cornell Cooperative Extension office before making large-scale amendment applications.
+Compliance with all applicable <b>NY State Cannabis Control Board</b> regulations is
+the sole responsibility of the grower.
+</div>
+""", unsafe_allow_html=True)
+
+# ── Page header ───────────────────────────────────────────────────────────────
 st.title("🌱 NY Cannabis & Hemp Soil Assessment")
 st.caption("Outdoor & greenhouse cultivation — New York State | Data: USDA NRCS SSURGO + your lab report")
-
 st.divider()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -76,96 +110,131 @@ with st.expander("📍 Step 1: Site Location & Soil Survey Lookup", expanded=Tru
             except Exception as e:
                 st.error(f"❌ Lookup error: {e}")
 
-    # Display results if available
     if st.session_state.soil_data:
-        soil = st.session_state.soil_data
+        soil    = st.session_state.soil_data
         comp    = soil.get("comp")
         horizon = soil.get("horizon")
 
         if comp or horizon:
             st.markdown("### 🗺️ NRCS Soil Survey Results")
             c1, c2 = st.columns(2)
-
             with c1:
                 st.markdown("**Soil Component**")
                 if comp:
                     st.markdown(f"""
 <div class="soil-card">
-<b>Map Unit:</b> {comp.get('map_unit', '—')}<br>
-<b>Dominant Series:</b> {comp.get('series', '—')} ({comp.get('pct', '—')}% of map unit)<br>
-<b>Taxonomy:</b> {comp.get('taxonomy', '—')}<br>
-<b>Drainage Class:</b> {comp.get('drainage', '—')}<br>
-<b>Hydrologic Group:</b> {comp.get('hydro_grp', '—')}<br>
-<b>Representative Slope:</b> {comp.get('slope', '—')}%
+<b>Map Unit:</b> {comp.get('map_unit','—')}<br>
+<b>Dominant Series:</b> {comp.get('series','—')} ({comp.get('pct','—')}% of map unit)<br>
+<b>Taxonomy:</b> {comp.get('taxonomy','—')}<br>
+<b>Drainage Class:</b> {comp.get('drainage','—')}<br>
+<b>Hydrologic Group:</b> {comp.get('hydro_grp','—')}<br>
+<b>Representative Slope:</b> {comp.get('slope','—')}%
 </div>""", unsafe_allow_html=True)
                 else:
                     st.warning("No component data — address may be outside SSURGO coverage.")
-                    if soil.get("error_comp"):
-                        st.caption(f"API error: {soil['error_comp']}")
-
             with c2:
                 st.markdown("**Surface Horizon (0 cm)**")
                 if horizon:
-                    ph_str  = f"{horizon['ph']}" if horizon.get('ph') else "—"
-                    cec_str = f"{horizon['cec']} meq/100g" if horizon.get('cec') else "—"
-                    om_str  = f"{horizon['om']}%" if horizon.get('om') else "—"
-                    depth   = f"{horizon.get('depth_top','?')}–{horizon.get('depth_bot','?')} cm"
                     st.markdown(f"""
 <div class="soil-card">
-<b>Horizon:</b> {horizon.get('horizon','—')} ({depth})<br>
+<b>Horizon:</b> {horizon.get('horizon','—')} ({horizon.get('depth_top','?')}–{horizon.get('depth_bot','?')} cm)<br>
 <b>Texture Class:</b> {horizon.get('texture','—')}<br>
-<b>pH (1:1 H₂O):</b> {ph_str}<br>
-<b>CEC:</b> {cec_str}<br>
-<b>Organic Matter:</b> {om_str}
+<b>pH (1:1 H₂O):</b> {horizon.get('ph','—') or '—'}<br>
+<b>CEC:</b> {f"{horizon['cec']} meq/100g" if horizon.get('cec') else '—'}<br>
+<b>Organic Matter:</b> {f"{horizon['om']}%" if horizon.get('om') else '—'}
 </div>""", unsafe_allow_html=True)
                 else:
                     st.warning("No horizon data returned.")
-                    if soil.get("error_horizon"):
-                        st.caption(f"API error: {soil['error_horizon']}")
         else:
-            st.warning("⚠️ No NRCS data found for this location. You can still run the assessment manually below.")
+            st.warning("⚠️ No NRCS data found. You can still enter data manually below.")
 
-    st.caption("Data from USDA NRCS SSURGO via Soil Data Access API. "
-               "For interactive map, visit [SoilWeb](https://casoilresource.lawr.ucdavis.edu/gmap/).")
+    st.caption("Data from USDA NRCS SSURGO. For an interactive map visit "
+               "[SoilWeb](https://casoilresource.lawr.ucdavis.edu/gmap/).")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 2 — CROP & LAB SELECTION
 # ─────────────────────────────────────────────────────────────────────────────
-with st.expander("🌿 Step 2: Crop Type & Laboratory Method", expanded=True):
-    col1, col2 = st.columns(2)
+with st.expander("🌿 Step 2: Crop Type, Laboratory & Reporting Units", expanded=True):
+    col1, col2, col3 = st.columns(3)
+
     with col1:
         crop = st.selectbox(
             "Crop Type",
             ["Hemp (fiber / grain / CBD)", "Cannabis (MJ, Adult-Use / Medical)"],
             key="crop_select",
         )
+
     with col2:
         lab = st.selectbox(
-            "Soil Lab / Extraction Method",
+            "Soil Laboratory / Extraction Method",
             list(LAB_FACTORS.keys()),
             key="lab_select",
-            help="Affects how P and K values are converted to Mehlich III equivalents before comparing to targets.",
+            help="Selects the conversion method for P and K. Modified Morgan values are multiplied by 2.2 (P) and 1.2 (K) to estimate Mehlich III equivalents.",
+        )
+
+    with col3:
+        report_unit = st.selectbox(
+            "Lab Report Units (for mineral nutrients)",
+            list(UNIT_CONVERSIONS.keys()),
+            key="unit_select",
+            help=(
+                "Select the unit your lab uses for mineral nutrients (P, K, Ca, Mg, etc.).\n\n"
+                "• ppm (mg/kg) — most common for Mehlich III labs\n"
+                "• lbs/acre — some labs report this instead of ppm (divide by 2 to get ppm)\n"
+                "• kg/ha — metric equivalent\n\n"
+                "pH, Organic Matter %, CEC (meq/100g), and Base Saturation % are always "
+                "entered in their own fixed units regardless of this selection."
+            ),
         )
 
     crop_key = "hemp" if "Hemp" in crop else "mj"
 
+    # Contextual notes
     if "Modified Morgan" in lab:
-        st.info("ℹ️ **Modified Morgan detected.** P values will be multiplied by 2.2 and K by 1.2 to approximate Mehlich III equivalents before comparison to targets.")
+        st.info("ℹ️ **Modified Morgan detected.** P will be multiplied ×2.2 and K ×1.2 to approximate Mehlich III before comparing to targets.")
+    if report_unit != "ppm (mg/kg)":
+        factor = UNIT_CONVERSIONS[report_unit]
+        st.info(f"ℹ️ **Unit conversion active:** values entered in *{report_unit}* will be multiplied by {factor} to convert to ppm before comparison.")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 3 — SOIL TEST INPUT
 # ─────────────────────────────────────────────────────────────────────────────
 with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
-    st.markdown("Enter values from your lab report. Leave blank if not measured.")
+    st.markdown(
+        "Enter values from your lab report. Leave blank if not measured. "
+        "**pH, Organic Matter, CEC, and Base Saturation** always use their own units "
+        f"— all other nutrients should be entered in **{report_unit}**."
+    )
 
-    factors = LAB_FACTORS.get(lab, {})
+    lab_factors = LAB_FACTORS.get(lab, {})
+    unit_factor = UNIT_CONVERSIONS.get(report_unit, 1.0)
 
-    # Group nutrients for display
     groups = {
         "Basic Properties": ["pH", "Organic Matter"],
-        "Macronutrients": ["P (Phosphorus)", "K (Potassium)", "Ca (Calcium)", "Mg (Magnesium)", "S (Sulfur)"],
-        "Micronutrients": ["Zn (Zinc)", "Mn (Manganese)", "Fe (Iron)", "Cu (Copper)", "B (Boron)"],
-        "Salts & Other": ["Na (Sodium)", "Al (Aluminum)", "CEC", "Base Saturation Ca%", "Base Saturation K%"],
+        "Macronutrients":   ["P (Phosphorus)", "K (Potassium)", "Ca (Calcium)", "Mg (Magnesium)", "S (Sulfur)"],
+        "Micronutrients":   ["Zn (Zinc)", "Mn (Manganese)", "Fe (Iron)", "Cu (Copper)", "B (Boron)"],
+        "Salts & Other":    ["Na (Sodium)", "Al (Aluminum)", "CEC", "Base Saturation Ca%", "Base Saturation K%"],
+    }
+
+    # Build per-nutrient help text
+    help_texts = {
+        "pH":                   "Dimensionless. Look for 'pH', 'Soil pH', or 'pH (1:1 water)' on your report.",
+        "Organic Matter":       "Always enter as %. Look for 'Organic Matter %' or 'OM %'.",
+        "P (Phosphorus)":       f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan P. ppm' column. Modified Morgan values will be auto-converted (×2.2).",
+        "K (Potassium)":        f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan K. ppm' column. Modified Morgan values will be auto-converted (×1.2).",
+        "Ca (Calcium)":         f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Ca. ppm'. This is NOT the same as Base Saturation Ca%.",
+        "Mg (Magnesium)":       f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Mg. ppm'.",
+        "S (Sulfur)":           f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan S. ppm'.",
+        "Zn (Zinc)":            f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Zn. ppm'.",
+        "Mn (Manganese)":       f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Mn. ppm'.",
+        "Fe (Iron)":            f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Fe. ppm'.",
+        "Cu (Copper)":          f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Cu. ppm'.",
+        "B (Boron)":            f"Enter in {report_unit}. Dairy One: use 'HWS Boron' or 'Mod. Morgan B. ppm'.",
+        "Na (Sodium)":          f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Na. ppm'.",
+        "Al (Aluminum)":        f"Enter in {report_unit}. Dairy One: use 'Mod. Morgan Al. ppm'.",
+        "CEC":                  "Always enter in meq/100g. Also reported as 'Total Exchange Capacity (M.E.)' or 'T.E.C.' on some lab reports — these are the same thing.",
+        "Base Saturation Ca%":  "Always enter as %. This is the % of CEC occupied by Ca ions — different from Ca in ppm.",
+        "Base Saturation K%":   "Always enter as %. This is the % of CEC occupied by K ions — different from K in ppm.",
     }
 
     user_values = {}
@@ -178,12 +247,15 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
                 continue
             col = cols[i % 4]
             with col:
-                label = f"{nname}"
-                if nname in factors:
-                    label += f" *(MM raw)*"
-                unit = nutrient["unit"]
+                # Determine display unit
+                if not nutrient["allow_unit_conversion"]:
+                    display_unit = nutrient["unit"]
+                else:
+                    display_unit = report_unit
+                # MM conversion flag
+                mm_note = " *(MM→M3 auto)*" if nname in lab_factors else ""
                 val = st.number_input(
-                    f"{label} [{unit}]",
+                    f"{nname} [{display_unit}]{mm_note}",
                     min_value=0.0,
                     max_value=50000.0,
                     value=None,
@@ -191,6 +263,7 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
                     format="%.2f",
                     key=f"nutrient_{nname}",
                     placeholder="—",
+                    help=help_texts.get(nname, ""),
                 )
                 user_values[nname] = val
         st.write("")
@@ -200,17 +273,16 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
 # ─────────────────────────────────────────────────────────────────────────────
 st.divider()
 run_btn = st.button("▶ Run Gap Analysis", type="primary", use_container_width=True)
-
 if run_btn:
     st.session_state.assessment_done = True
 
 if st.session_state.assessment_done:
     st.markdown("## 📊 Gap Analysis Results")
-    st.caption(f"Crop: **{crop}** | Lab: **{lab}**")
+    st.caption(f"Crop: **{crop}** | Lab: **{lab}** | Input units: **{report_unit}**")
 
-    factors = LAB_FACTORS.get(lab, {})
+    lab_factors  = LAB_FACTORS.get(lab, {})
+    unit_factor  = UNIT_CONVERSIONS.get(report_unit, 1.0)
 
-    # Build results table
     rows = []
     deficient_nutrients = []
     excess_nutrients    = []
@@ -219,138 +291,141 @@ if st.session_state.assessment_done:
         nname = n["name"]
         raw   = user_values.get(nname)
 
-        if raw is None or raw == 0.0:
-            # Check if it was actually entered as 0 vs left blank
-            # We'll treat None as not entered
+        if raw is None:
             rows.append({
-                "Nutrient":       nname,
-                "Unit":           n["unit"],
-                "Raw Value":      "—",
-                "Converted (M3)": "—",
-                "Target Min":     n["hemp_min"] if crop_key == "hemp" else n["mj_min"],
-                "Target Max":     n["hemp_max"] if crop_key == "hemp" else n["mj_max"],
-                "Status":         "— No data",
-                "Note":           n["note"],
+                "Nutrient":         nname,
+                "Unit (target)":    n["unit"],
+                "Value entered":    "—",
+                "Value (ppm equiv)":"—",
+                "Target min":       n["hemp_min"] if crop_key == "hemp" else n["mj_min"],
+                "Target max":       n["hemp_max"] if crop_key == "hemp" else n["mj_max"],
+                "Status":           "— No data",
+                "Note":             n["note"],
             })
             continue
 
-        factor  = factors.get(nname, 1.0)
-        conv    = round(raw * factor, 2)
-        t_min   = n["hemp_min"] if crop_key == "hemp" else n["mj_min"]
-        t_max   = n["hemp_max"] if crop_key == "hemp" else n["mj_max"]
+        # 1. Convert reporting unit → ppm (only for nutrients that allow it)
+        unit_conv = unit_factor if n["allow_unit_conversion"] else 1.0
+        # 2. Apply Modified Morgan → Mehlich III factor
+        mm_conv   = lab_factors.get(nname, 1.0)
+        converted = round(raw * unit_conv * mm_conv, 2)
 
-        if conv < t_min:
+        t_min = n["hemp_min"] if crop_key == "hemp" else n["mj_min"]
+        t_max = n["hemp_max"] if crop_key == "hemp" else n["mj_max"]
+
+        if converted < t_min:
             status = "⚠ DEFICIENT"
             deficient_nutrients.append(nname)
-        elif conv > t_max:
+        elif converted > t_max:
             status = "▲ EXCESS"
             excess_nutrients.append(nname)
         else:
             status = "✓ ADEQUATE"
 
+        show_conv = converted if (unit_conv != 1.0 or mm_conv != 1.0) else "—"
         rows.append({
-            "Nutrient":       nname,
-            "Unit":           n["unit"],
-            "Raw Value":      raw,
-            "Converted (M3)": conv if factor != 1.0 else "—",
-            "Target Min":     t_min,
-            "Target Max":     t_max,
-            "Status":         status,
-            "Note":           n["note"],
+            "Nutrient":         nname,
+            "Unit (target)":    n["unit"],
+            "Value entered":    raw,
+            "Value (ppm equiv)":show_conv,
+            "Target min":       t_min,
+            "Target max":       t_max,
+            "Status":           status,
+            "Note":             n["note"],
         })
 
     df = pd.DataFrame(rows)
 
-    # Color-code the Status column
     def style_status(val):
-        if "DEFICIENT" in str(val):
-            return "background-color: #ffd6d6; color: #8b0000; font-weight: bold"
-        if "EXCESS" in str(val):
-            return "background-color: #fff3cd; color: #856404; font-weight: bold"
-        if "ADEQUATE" in str(val):
-            return "background-color: #d6f0d6; color: #006400; font-weight: bold"
+        if "DEFICIENT" in str(val): return "background-color: #ffd6d6; color: #8b0000; font-weight: bold"
+        if "EXCESS"    in str(val): return "background-color: #fff3cd; color: #856404; font-weight: bold"
+        if "ADEQUATE"  in str(val): return "background-color: #d6f0d6; color: #006400; font-weight: bold"
         return "color: #888; font-style: italic"
 
     styled = df.style.map(style_status, subset=["Status"])
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
-    # Download button
     csv = df.to_csv(index=False)
-    st.download_button(
-        "⬇ Download Results (CSV)",
-        data=csv,
-        file_name="soil_gap_analysis.csv",
-        mime="text/csv",
+    st.download_button("⬇ Download Results (CSV)", data=csv,
+                       file_name="soil_gap_analysis.csv", mime="text/csv")
+
+    # ── Possible Amendments ────────────────────────────────────────────────
+    st.divider()
+    st.markdown("## 🌾 Possible Amendments")
+    st.caption(
+        "The following are **possible options** based on the deficiencies and excesses identified above. "
+        "These are not prescriptions. Always verify rates and products with a certified crop advisor "
+        "before purchasing or applying anything."
     )
 
-    # ── Amendment Recommendations ─────────────────────────────────────────
-    st.divider()
-    st.markdown("## 🌾 Amendment Recommendations")
-
     if not deficient_nutrients and not excess_nutrients:
-        st.success("🎉 All entered nutrients are within target range — no amendments needed based on this data.")
+        st.success("🎉 All entered nutrients are within target range — no amendments indicated based on this data.")
     else:
+        def form_tag(form_str):
+            f = form_str.lower()
+            if "liquid"   in f: cls, label = "tag-liquid",   "💧 Liquid"
+            elif "pellet" in f: cls, label = "tag-pellet",   "🔵 Pellet"
+            elif "granul" in f or "prill" in f: cls, label = "tag-granular", "🟡 Granular"
+            else:               cls, label = "tag-powder",   "⚪ Powder"
+            return f'<span class="tag {cls}">{label}</span>'
+
+        def organic_tag(is_organic):
+            if is_organic:
+                return '<span class="tag tag-organic">🌿 Organic / OMRI</span>'
+            return '<span class="tag tag-synthetic">🔬 Conventional</span>'
+
         if deficient_nutrients:
-            st.markdown(f"### ⚠ Deficiencies detected: {', '.join(deficient_nutrients)}")
+            st.markdown(f"### ⚠ Addressing Deficiencies: {', '.join(deficient_nutrients)}")
+            shown = set()
             for nname in deficient_nutrients:
-                # Short name (strip element symbol notes)
-                short = nname.split(" ")[0]
-                # Find matching amendments
-                matching = [a for a in AMENDMENTS if
-                            short.lower() in a["condition"].lower() or
-                            nname.split("(")[0].strip().lower() in a["condition"].lower()]
-                if not matching and nname in QUICK_AMEND:
-                    quick = QUICK_AMEND[nname]
-                    st.markdown(f"""
+                short = nname.split("(")[0].strip().lower()
+                for a in AMENDMENTS:
+                    cond_lower = a["condition"].lower()
+                    if short in cond_lower or nname.lower() in cond_lower:
+                        key = a["amendment"]
+                        if key in shown:
+                            continue
+                        shown.add(key)
+                        st.markdown(f"""
 <div class="amend-card">
-<b>{nname} — Deficient</b><br>
-<b>Recommended:</b> {quick.get('low', '—')}<br>
-</div>""", unsafe_allow_html=True)
-                for a in matching:
-                    st.markdown(f"""
-<div class="amend-card">
-<b>{a['condition']}</b><br>
-<b>Amendment:</b> {a['amendment']}<br>
-<b>Rate:</b> {a['rate']}<br>
-<i>{a['notes']}</i>
+<h4>{a['amendment']}</h4>
+{organic_tag(a['organic'])} {form_tag(a['form'])}
+<br><br>
+<b>Addresses:</b> {a['condition']}<br>
+<b>How to apply:</b> {a['application']}<br>
+<b>Typical rate:</b> {a['rate']}<br>
+<b>Notes:</b> {a['notes']}
 </div>""", unsafe_allow_html=True)
 
         if excess_nutrients:
-            st.markdown(f"### ▲ Excess levels detected: {', '.join(excess_nutrients)}")
+            st.markdown(f"### ▲ Addressing Excess Levels: {', '.join(excess_nutrients)}")
             for nname in excess_nutrients:
-                if nname in QUICK_AMEND:
-                    quick = QUICK_AMEND[nname]
-                    st.markdown(f"""
-<div class="amend-card" style="border-left-color:#e67e22;">
-<b>{nname} — Excess</b><br>
-<b>Action:</b> {quick.get('high', 'Reduce inputs; re-test in 60–90 days')}<br>
+                action = QUICK_AMEND.get(nname, {}).get("high", "Reduce inputs; re-test in 60–90 days")
+                st.markdown(f"""
+<div class="amend-card" style="border-left: 3px solid #e67e22;">
+<h4>{nname} — Excess</h4>
+<b>Suggested action:</b> {action}
 </div>""", unsafe_allow_html=True)
 
     # ── Soil health context ───────────────────────────────────────────────
     with st.expander("💡 Soil Health Context & General Guidelines"):
         st.markdown("""
-**pH** is the most important lever — it controls the availability of nearly every nutrient.
-Target **6.2–6.8** for cannabis and hemp. At pH < 6.0 Al and Mn become toxic;
-at pH > 7.2 Fe, Zn, Mn, and B become unavailable.
+**pH** is the most important lever — it controls availability of nearly every nutrient.
+Target **6.2–6.8** for cannabis and hemp. At pH < 6.0, Al and Mn become toxic;
+at pH > 7.2, Fe, Zn, Mn, and B become unavailable.
 
-**Organic matter** feeds the soil microbiome, buffers nutrients, and improves water-holding.
-A minimum of 3% OM is recommended; 5–8% is ideal for outdoor cultivation in NY.
+**Organic matter** feeds the soil microbiome, buffers nutrients, and improves water retention.
+A minimum of 3% OM is recommended; 5–8% is ideal for NY outdoor cultivation.
 
 **Ca:Mg ratio** should be approximately 5:1 to 8:1 by weight (ppm).
-High Mg relative to Ca can cause soil compaction in silty loam soils common in NY.
+High Mg relative to Ca can cause compaction in the silt loam soils common in NY.
 
-**K:Mg ratio** should stay < 3:1.
-High K suppresses Mg uptake and is a common cause of Mg deficiency in NY cannabis fields.
+**K:Mg ratio** should stay below 3:1.
+High K suppresses Mg uptake — a common cause of Mg deficiency in NY cannabis fields.
 
 **Micronutrients** (Zn, Mn, Fe, Cu, B) are primarily affected by pH.
-Foliar applications are the fastest correction for in-season deficiencies.
+Foliar applications are the fastest in-season correction.
 
-For questions about NY-specific hemp or cannabis licensing and agronomy support,
+For questions about NY-specific hemp or cannabis licensing and agronomy,
 contact your local Cornell Cooperative Extension office.
 """)
-
-    st.divider()
-    st.caption("⚠️ This tool provides agronomic guidance based on general cannabis/hemp literature and "
-               "NY State extension frameworks. Always consult a certified crop advisor (CCA) or licensed "
-               "agronomist before making large-scale amendment applications. Targets are for Mehlich III "
-               "(or converted equivalent) extractions at the surface horizon (0–20 cm / 0–8 in).")
