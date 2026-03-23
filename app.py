@@ -79,7 +79,7 @@ with col1:
 with col2:
     st.markdown("""
 <div class="tool-card">
-  <h3>💰 Economics Tool <span class="badge badge-soon">COMING SOON</span></h3>
+  <h3>💰 Economics Tool <span class="badge badge-live">LIVE</span></h3>
   <p>Enterprise budgets and profitability analysis for NY cannabis and hemp operations.</p>
   <ul>
     <li>Break-even yield and price calculator</li>
@@ -91,7 +91,7 @@ with col2:
 </div>
 """, unsafe_allow_html=True)
     st.write("")
-    if st.button("→ Preview Economics Tool", use_container_width=True):
+    if st.button("→ Open Economics Tool", use_container_width=True, type="primary"):
         st.switch_page("pages/2_Economics.py")
 
 # ── How it works ──────────────────────────────────────────────────────────────
