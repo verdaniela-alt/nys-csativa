@@ -387,7 +387,9 @@ if st.session_state.assessment_done:
     st.caption(
         "The following are **possible options** based on the deficiencies and excesses identified above. "
         "These are not prescriptions. Always verify rates and products with a certified crop advisor "
-        "before purchasing or applying anything."
+        "before purchasing or applying anything. "
+        "**Prices are estimates based on 2025–2026 US market data and will vary by supplier, region, "
+        "quantity, and season — treat as rough budgeting guidance only.**"
     )
 
     if not deficient_nutrients and not excess_nutrients:
@@ -418,6 +420,11 @@ if st.session_state.assessment_done:
                         if key in shown:
                             continue
                         shown.add(key)
+                        price_str = (
+                            f"<b>💲 Estimated price:</b> "
+                            f"${a['price_low']:.2f}–${a['price_high']:.2f} {a['price_unit']}"
+                            f"<br><i style='font-size:0.85rem;color:#666'>{a['price_note']}</i>"
+                        ) if "price_low" in a else ""
                         st.markdown(f"""
 <div class="amend-card">
 <h4>{a['amendment']}</h4>
@@ -426,7 +433,8 @@ if st.session_state.assessment_done:
 <b>Addresses:</b> {a['condition']}<br>
 <b>How to apply:</b> {a['application']}<br>
 <b>Typical rate:</b> {a['rate']}<br>
-<b>Notes:</b> {a['notes']}
+<b>Notes:</b> {a['notes']}<br><br>
+{price_str}
 </div>""", unsafe_allow_html=True)
 
         if excess_nutrients:

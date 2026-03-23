@@ -80,6 +80,8 @@ AMENDMENTS = [
         application="Broadcast on surface and incorporate; pelletized lime can be applied with a spreader",
         rate="1–3 tons/acre depending on buffering pH and target pH",
         notes="Apply 6 months before planting if possible; re-test soil after 3 months. Calcitic lime raises pH and adds Ca but not Mg.",
+        price_low=35,   price_high=200,  price_unit="per ton",
+        price_note="Bulk powder $35–70/ton; delivered & spread $80–130/ton; pelletized bagged ~$150–200/ton. Prices vary by region and quantity.",
     ),
     dict(
         condition="pH > 7.0",
@@ -89,6 +91,8 @@ AMENDMENTS = [
         application="Broadcast and incorporate into top 6 inches; do not apply to dry soil in hot weather",
         rate="100–500 lbs/acre; adjust based on buffer pH and target",
         notes="Soil bacteria oxidize S to sulfuric acid — effect takes 2–6 months. Best applied fall before spring planting.",
+        price_low=200,  price_high=400,  price_unit="per ton",
+        price_note="Bulk agricultural sulfur $200–400/ton; bagged (50 lb) ~$0.50–1.00/lb ($1,000–2,000/ton equivalent). Prices surged in 2025.",
     ),
     dict(
         condition="pH > 7.0 (faster correction)",
@@ -98,6 +102,8 @@ AMENDMENTS = [
         application="Broadcast and water in, or dissolve and apply as soil drench",
         rate="10–20 lbs/acre broadcast; 1–2 oz/gal as drench",
         notes="Faster acting than elemental S but shorter-lasting. Good for in-season correction. Also adds Fe.",
+        price_low=0.40, price_high=0.90, price_unit="per lb",
+        price_note="Typically $0.40–0.90/lb at farm/garden supply; ~$350–600/ton in bulk. Small quantities available at most farm stores.",
     ),
     dict(
         condition="P Deficient",
@@ -107,6 +113,8 @@ AMENDMENTS = [
         application="Broadcast and incorporate before planting; works best when mixed into root zone",
         rate="300–600 lbs/acre",
         notes="Slow-release; best at pH < 6.5. Effectiveness increases with mycorrhizal fungi — consider inoculant.",
+        price_low=0.35, price_high=0.70, price_unit="per lb",
+        price_note="Retail $0.35–0.70/lb (50 lb bag); bulk ~$300–500/ton. Fedco Seeds and Ohio Earth Food are common NE suppliers.",
     ),
     dict(
         condition="P Deficient (fast correction)",
@@ -116,6 +124,8 @@ AMENDMENTS = [
         application="Broadcast and incorporate or band-apply near root zone",
         rate="50–150 lbs/acre",
         notes="Fast-acting water-soluble P. Avoid over-application — excess P suppresses mycorrhizae and can lock out Zn.",
+        price_low=880,  price_high=1270, price_unit="per ton",
+        price_note="US retail $880–1,270/ton (March 2026 USDA data). One of the more expensive fertilizers currently — price elevated due to supply chain pressures.",
     ),
     dict(
         condition="K Deficient",
@@ -125,6 +135,8 @@ AMENDMENTS = [
         application="Broadcast and incorporate; best applied in fall",
         rate="50–100 lbs/100 sq ft",
         notes="Very slow-release; useful to build long-term K reserves over multiple seasons. Does not provide quick correction.",
+        price_low=0.50, price_high=1.20, price_unit="per lb",
+        price_note="Typically $0.50–1.20/lb retail (50 lb bag ~$25–60). Widely available at organic farm suppliers in the Northeast.",
     ),
     dict(
         condition="K Deficient (fast correction)",
@@ -134,6 +146,8 @@ AMENDMENTS = [
         application="Broadcast and water in, or dissolve in water and drench",
         rate="100–250 lbs/acre",
         notes="Preferred over potassium chloride (KCl/MOP) for cannabis — chloride can reduce terpene quality. SOP also adds sulfur.",
+        price_low=750,  price_high=900,  price_unit="per ton",
+        price_note="North America SOP ~$750–900/ton (late 2025 data). Bagged retail significantly higher (~$1.50–2.50/lb). OMRI-listed grades available.",
     ),
     dict(
         condition="Ca Deficient",
@@ -143,6 +157,8 @@ AMENDMENTS = [
         application="Broadcast on surface; no incorporation needed — water-soluble",
         rate="500–1000 lbs/acre",
         notes="Does NOT raise pH — ideal when pH is already in target range. Also supplies sulfur and improves structure in clay soils.",
+        price_low=30,   price_high=60,   price_unit="per ton",
+        price_note="One of the most affordable amendments: $30–60/ton delivered and spread. Widely available in NY from agricultural gypsum suppliers.",
     ),
     dict(
         condition="Mg Deficient",
@@ -152,6 +168,8 @@ AMENDMENTS = [
         application="Broadcast and incorporate; same as calcitic lime",
         rate="1–2 tons/acre",
         notes="Use when BOTH pH and Mg need to be raised. Monitor Ca:Mg ratio — target 5:1 to 8:1. Avoid if pH is already ≥ 6.5.",
+        price_low=35,   price_high=180,  price_unit="per ton",
+        price_note="Bulk $35–80/ton; delivered $80–130/ton; pelletized bagged $130–180/ton. Similar pricing to calcitic lime.",
     ),
     dict(
         condition="Mg Deficient (in-season)",
@@ -161,6 +179,8 @@ AMENDMENTS = [
         application="Foliar spray (1–2% solution) or soil drench; foliar is fastest uptake",
         rate="10–20 lbs/acre foliar; 25–50 lbs/acre soil drench",
         notes="Fast uptake via foliar. Do not exceed recommended rates — excess Mg competes with Ca and K at root uptake sites.",
+        price_low=0.40, price_high=0.90, price_unit="per lb",
+        price_note="Agricultural grade $0.40–0.90/lb; bulk ~$400–700/ton. Garden/feed store bags widely available. Food-grade costs more.",
     ),
     dict(
         condition="S Deficient",
@@ -170,6 +190,8 @@ AMENDMENTS = [
         application="Broadcast on surface and water in",
         rate="200–500 lbs/acre",
         notes="Preferred S source — also adds Ca and improves soil structure. Good choice when Ca is also low.",
+        price_low=30,   price_high=60,   price_unit="per ton",
+        price_note="Same product as for Ca deficiency. $30–60/ton delivered and spread — very cost-effective S source.",
     ),
     dict(
         condition="Zn Deficient",
@@ -179,6 +201,8 @@ AMENDMENTS = [
         application="Foliar spray (0.5–1 lb/acre in 20–30 gal water) or broadcast soil application",
         rate="5–10 lbs/acre broadcast; 0.5–1 lb/acre foliar",
         notes="Foliar application is the most efficient and fastest correction. Apply at vegetative stage before flowering. High pH reduces soil Zn availability — check pH first.",
+        price_low=0.80, price_high=1.60, price_unit="per lb",
+        price_note="Retail $0.80–1.60/lb (50 lb bag ~$40–80). Foliar use is very efficient so a single bag covers significant acreage.",
     ),
     dict(
         condition="Mn Deficient",
@@ -188,6 +212,8 @@ AMENDMENTS = [
         application="Foliar spray or broadcast and incorporate",
         rate="5–10 lbs/acre broadcast; 1–2 lbs/acre foliar",
         notes="Mn availability drops sharply above pH 7 — consider acidifying amendment if pH is high. Foliar correction is faster for in-season use.",
+        price_low=0.80, price_high=1.50, price_unit="per lb",
+        price_note="Typically $0.80–1.50/lb retail; $600–900/ton bulk. Available at most farm and garden supply stores.",
     ),
     dict(
         condition="Fe Deficient",
@@ -197,6 +223,8 @@ AMENDMENTS = [
         application="Foliar spray or drip/drench application; avoid applying to dry foliage in direct sun",
         rate="1–2 lbs/acre foliar",
         notes="EDDHA chelate is more stable at high pH (> 7) than EDTA. Fe deficiency at neutral/high pH is usually pH-induced — address pH first for lasting correction.",
+        price_low=3.00, price_high=8.00, price_unit="per lb",
+        price_note="Most expensive micronutrient amendment: $3–8/lb depending on chelate type (EDDHA > EDTA). Low use rate (1–2 lb/acre) keeps per-acre cost manageable.",
     ),
     dict(
         condition="B Deficient",
@@ -206,6 +234,8 @@ AMENDMENTS = [
         application="Foliar spray (Solubor) or broadcast soil application (Borax); foliar preferred for quick correction",
         rate="0.5–1 lb/acre foliar; 1–3 lbs/acre soil broadcast",
         notes="⚠ Very narrow deficiency/toxicity window. Do NOT exceed 3 lbs/acre soil application. Toxic to plants above 5 ppm soil B. Always start at lower end of rate.",
+        price_low=1.50, price_high=3.00, price_unit="per lb (Solubor)",
+        price_note="Solubor $1.50–3.00/lb; Borax $0.40–0.80/lb. Very low use rates — a small bag goes a long way. Solubor preferred for foliar.",
     ),
     dict(
         condition="Low Organic Matter (< 3%)",
@@ -215,6 +245,8 @@ AMENDMENTS = [
         application="Broadcast and incorporate 4–6 inches; or use as surface mulch in no-till systems",
         rate="2–5 tons/acre; repeat annually for 3–5 years to build OM",
         notes="Choose compost with C:N ratio < 20:1 (well-finished). Feeds soil biology, improves CEC and water-holding. Most impactful long-term investment for NY cannabis soils.",
+        price_low=30,   price_high=80,   price_unit="per ton",
+        price_note="Bulk $30–70/ton; delivered $40–80/ton. At 2–5 tons/acre that is $60–400/acre/year. Local farm compost is often cheaper than commercial.",
     ),
 ]
 
