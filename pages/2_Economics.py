@@ -9,8 +9,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
+
+try:
+    import plotly.graph_objects as go
+    import plotly.express as px
+    HAS_PLOTLY = True
+except ImportError:
+    HAS_PLOTLY = False
 
 st.set_page_config(
     page_title="Economics | NYS Cannabis Tool",
@@ -403,6 +408,9 @@ def render_summary(results):
 
     # ── Revenue vs Costs bar chart ────────────────────────────────────────
     st.markdown("### 📊 Revenue vs. Costs")
+    if not HAS_PLOTLY:
+        st.warning("Install plotly to see charts: `pip install plotly`")
+        return
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(name="Total Revenue",  x=names,
                              y=[r["total_revenue"] for r in results],
