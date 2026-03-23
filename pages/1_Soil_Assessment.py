@@ -469,3 +469,73 @@ Foliar applications are the fastest in-season correction.
 For questions about NY-specific hemp or cannabis licensing and agronomy,
 contact your local Cornell Cooperative Extension office.
 """)
+
+    # ── Amendment Budget Estimator ─────────────────────────────────────────
+    if deficient_nutrients:
+        st.divider()
+        st.markdown("## 💰 Amendment Budget Estimator")
+        st.caption(
+            "Rough cost estimate for the amendments indicated above. "
+            "Enter your field size to calculate total estimated cost. "
+            "This estimate flows automatically into the Economics Tool."
+        )
+
+        col_a, _ = st.columns([1, 3])
+        with col_a:
+            acres_est = st.number_input(
+                "Field size (acres)",
+                min_value=0.01, max_value=10000.0, value=1.0, step=0.25,
+                key="budget_acres",
+                help="Total cultivated acreage for this field or season"
+            )
+
+        # Build cost table: one row per deficient nutrient, first matching amendment
+        budget_rows = []
+        total_low = 0.0
+        total_high = 0.0
+        seen_amend = set()
+
+        for nname in deficient_nutrients:
+            short = nname.split("(")[0].strip().lower()
+            for a in AMENDMENTS:
+                cond_lower = a["condition"].lower()
+                if (short in cond_lower or nname.lower() in cond_lower) and a.get("cost_acre_low", 0) > 0:
+                    key_a = a["amendment"]
+                    if key_a in seen_amend:
+                        continue
+                    seen_amend.add(key_a)
+                    low  = round(a["cost_acre_low"]  * acres_est, 2)
+                    high = round(a["cost_acre_high"] * acres_est, 2)
+                    total_low  += low
+                    total_high += high
+                    budget_rows.append({
+                        "Deficiency":  nname,
+                        "Amendment":   a["amendment"],
+                        "$/acre (low)": f"${a['cost_acre_low']:.0f}",
+                        "$/acre (high)":f"${a['cost_acre_high']:.0f}",
+                        f"Est. cost ({acres_est:.2f} ac) low":  f"${low:,.0f}",
+                        f"Est. cost ({acres_est:.2f} ac) high": f"${high:,.0f}",
+                    })
+                    break
+
+        if budget_rows:
+            budget_mid = (total_low + total_high) / 2
+            st.dataframe(pd.DataFrame(budget_rows), use_container_width=True, hide_index=True)
+
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Estimated Low", f"${total_low:,.0f}")
+            c2.metric("Estimated Mid", f"${budget_mid:,.0f}")
+            c3.metric("Estimated High", f"${total_high:,.0f}")
+
+            # Store in session state for economics tool
+            st.session_state["soil_amendment_cost_low"] = total_low
+            st.session_state["soil_amendment_cost_high"] = total_high
+            st.session_state["soil_amendment_cost_mid"] = budget_mid
+            st.session_state["soil_amendment_acres"] = acres_est
+
+            st.info(
+                "💡 These estimates will be **pre-filled in the Economics Tool** "
+                "under Fertilizer & Amendments. Open the Economics Tool from the sidebar."
+            )
+        else:
+            st.caption("No per-acre cost data available for the detected deficiencies.")
