@@ -370,6 +370,12 @@ Always verify current OCM requirements at <a href="https://cannabis.ny.gov" targ
 
 st.title("📋 NYS OCM Community Impact Plan — Form Builder")
 st.caption("Answer the questions in each section to generate a submission-ready CIP document.")
+
+st.info(
+    "**How to use this tool:**  \n"
+    "Fill in the tabs from left to right — **1 · Applicant Info** through **7 · Additional Info**.  \n"
+    "When all sections are complete, click the **✅ Review & Download** tab to generate and download your Word document."
+)
 st.divider()
 
 if not HAS_DOCX:
@@ -428,6 +434,8 @@ with tabs[0]:
         d["ocm_region"] = st.selectbox("OCM Region *", OCM_REGIONS, index=ocm_idx, key="cip_region")
         d["phone"] = st.text_input("Phone *", value=f("phone"), placeholder="e.g. (607) 555-0100", key="cip_phone")
         d["email"] = st.text_input("Email *", value=f("email"), placeholder="name@business.com", key="cip_email")
+    st.divider()
+    st.caption("➡ When done, click the **2 · Problem & Need** tab above to continue.")
 
 # ── TAB 2: Problem / Need Statement ───────────────────────────────────────────
 with tabs[1]:
@@ -500,6 +508,8 @@ with tabs[1]:
         value=f("outreach_partner"),
         placeholder="e.g. Tompkins County Reentry Program, local faith communities",
         key="cip_outreach_part")
+    st.divider()
+    st.caption("➡ When done, click the **3 · Research & Partners** tab above to continue.")
 
 # ── TAB 3: Research & Partnerships ────────────────────────────────────────────
 with tabs[2]:
@@ -565,6 +575,8 @@ with tabs[2]:
         value=f("formalization_approach"),
         placeholder="e.g. MOUs, letters of support, co-planning meetings",
         key="cip_formalize")
+    st.divider()
+    st.caption("➡ When done, click the **4 · Goals & Activities** tab above to continue.")
 
 # ── TAB 4: Goals & Activities ──────────────────────────────────────────────────
 with tabs[3]:
@@ -685,6 +697,9 @@ with tabs[3]:
                 placeholder="e.g. sign-in sheets, pre/post surveys, partner feedback",
                 key="cip_g3_track")
 
+    st.divider()
+    st.caption("➡ When done, click the **5 · Timeline & Budget** tab above to continue.")
+
 # ── TAB 5: Timeline & Budget ───────────────────────────────────────────────────
 with tabs[4]:
     st.markdown("#### Section 5 — Timeline and Budget")
@@ -773,6 +788,8 @@ with tabs[4]:
         value=f("funding_sources"),
         placeholder="e.g. USDA grants, cannabis equity fund applications, partner contributions",
         key="cip_fund_src")
+    st.divider()
+    st.caption("➡ When done, click the **6 · Evaluation** tab above to continue.")
 
 # ── TAB 6: Evaluation & Accountability ────────────────────────────────────────
 with tabs[5]:
@@ -814,6 +831,8 @@ with tabs[5]:
         value=f("consultation_partners"),
         placeholder="e.g. our community advisory group and CCE",
         key="cip_consult_part")
+    st.divider()
+    st.caption("➡ When done, click the **7 · Additional Info** tab above to continue.")
 
 # ── TAB 7: Additional Info + Signature ────────────────────────────────────────
 with tabs[6]:
@@ -847,6 +866,8 @@ with tabs[6]:
         d["cert_date"] = st.text_input("Date of submission",
             value=f("cert_date") or date.today().strftime("%B %d, %Y"),
             key="cip_cert_date")
+    st.divider()
+    st.caption("➡ When done, click the **✅ Review & Download** tab above to generate your document.")
 
 # ── TAB 8: Review & Download ───────────────────────────────────────────────────
 with tabs[7]:
@@ -895,13 +916,17 @@ with tabs[7]:
         st.markdown(f"**Submission Date:** {d.get('cert_date','—')}")
 
     st.divider()
-    st.markdown("**Download your completed CIP document**")
+    st.markdown("### 📄 Generate Your Community Impact Plan Document")
+    st.markdown(
+        "Click the button below to build your Word document from all the information you entered. "
+        "The file will download immediately — open it in Microsoft Word or Google Docs to review and sign."
+    )
 
     docx_bytes = build_cip_docx(d)
     filename = f"CIP_{d.get('business_name','draft').replace(' ','_')}_{d.get('cert_date','').replace(' ','_').replace(',','')}.docx"
 
     st.download_button(
-        "⬇ Download Community Impact Plan (.docx)",
+        "📄 Generate & Download Community Impact Plan (.docx)",
         data=docx_bytes,
         file_name=filename,
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
