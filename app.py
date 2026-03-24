@@ -154,22 +154,6 @@ with col5:
     if st.button("→ Open Batch Overview", use_container_width=True, type="primary"):
         st.switch_page("pages/5_Batch_Overview.py")
 
-# ── How it works ──────────────────────────────────────────────────────────────
-st.divider()
-st.markdown("## How the Soil Assessment Tool Works")
-
-steps = st.columns(4)
-step_data = [
-    ("1️⃣", "Enter Address", "Type your farm or field address. The tool geocodes it and queries the USDA NRCS SSURGO database for your soil series, texture, drainage class, and baseline pH."),
-    ("2️⃣", "Select Crop & Lab", "Choose Hemp or Cannabis (MJ) and select your soil laboratory. Modified Morgan values are automatically converted to Mehlich III equivalents."),
-    ("3️⃣", "Enter Lab Results", "Type in values from your soil test report — pH, OM, macro- and micronutrients. Leave fields blank if not measured."),
-    ("4️⃣", "Get Recommendations", "Instant color-coded gap analysis (Deficient / Adequate / Excess) plus specific amendment products, rates, and timing for NY conditions."),
-]
-for col, (icon, title, desc) in zip(steps, step_data):
-    with col:
-        st.markdown(f"**{icon} {title}**")
-        st.caption(desc)
-
 # ── Data sources & disclaimer ─────────────────────────────────────────────────
 st.divider()
 with st.expander("📚 Data Sources & Disclaimer"):

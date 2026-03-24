@@ -539,3 +539,20 @@ contact your local Cornell Cooperative Extension office.
             )
         else:
             st.caption("No per-acre cost data available for the detected deficiencies.")
+
+st.divider()
+st.markdown("## How This Tool Works")
+steps = st.columns(4)
+step_data = [
+    ("1️⃣", "Enter Address", "Type your farm or field address. The tool geocodes it and queries the USDA NRCS SSURGO database for your soil series, texture, drainage class, and baseline pH."),
+    ("2️⃣", "Select Crop & Lab", "Choose Hemp or Cannabis (MJ) and select your soil laboratory. Modified Morgan values are automatically converted to Mehlich III equivalents."),
+    ("3️⃣", "Enter Lab Results", "Type in values from your soil test report — pH, OM, macro- and micronutrients. Leave fields blank if not measured."),
+    ("4️⃣", "Get Recommendations", "Instant color-coded gap analysis (Deficient / Adequate / Excess) plus specific amendment products, rates, and timing for NY conditions."),
+]
+for col, (icon, title, desc) in zip(steps, step_data):
+    with col:
+        st.markdown(f"**{icon} {title}**")
+        st.caption(desc)
+
+st.caption("Built for NYS licensed cultivators · Data: USDA NRCS + US Census Geocoder · "
+           "Targets: NY State Extension / CCE agronomic frameworks")
