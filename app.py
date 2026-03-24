@@ -42,7 +42,45 @@ st.markdown("""
 }
 .badge-live { background: #d4edda; color: #155724; }
 .badge-soon { background: #fff3cd; color: #856404; }
+.disclaimer-banner {
+    background: #fff8e1;
+    border: 2px solid #f9a825;
+    border-left: 6px solid #e65100;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+.disclaimer-banner h4 {
+    color: #b71c1c;
+    margin: 0 0 10px 0;
+    font-size: 1.05rem;
+}
+.disclaimer-banner b { color: #e65100; }
 </style>
+""", unsafe_allow_html=True)
+
+# ── Disclaimer & Data Sources ─────────────────────────────────────────────────
+st.markdown("""
+<div class="disclaimer-banner">
+<h4>⚠️ Important Disclaimer & Data Sources — Please Read Before Using These Tools</h4>
+<b>These tools are for educational and planning purposes only.</b> They do not constitute
+professional agronomic, financial, or legal advice. Results should be interpreted by a
+qualified professional before any action is taken. <b>The developers assume no responsibility
+or liability</b> for any decisions, crop losses, financial outcomes, or regulatory consequences
+arising from use of these tools.<br><br>
+Always consult a <b>certified crop advisor (CCA)</b>, licensed agronomist, or your local
+<b>Cornell Cooperative Extension</b> office before making large-scale amendment applications.
+Compliance with all applicable <b>NY State Cannabis Control Board (OCM)</b> regulations is
+the sole responsibility of the grower.<br><br>
+<b>Soil data:</b> USDA NRCS SSURGO via
+<a href="https://SDMDataAccess.nrcs.usda.gov" target="_blank">Soil Data Access REST API</a> ·
+Address geocoding by <a href="https://geocoding.geo.census.gov" target="_blank">US Census Geocoder</a> ·
+<b>Nutrient targets:</b> NY State extension frameworks, peer-reviewed cannabis agronomy literature,
+and CCA guidance for northeastern US production (Mehlich III equivalents) ·
+<b>Amendment rates:</b> representative ranges only — determine actual rates with a CCA.
+</div>
 """, unsafe_allow_html=True)
 
 # ── Hero banner ───────────────────────────────────────────────────────────────
@@ -153,33 +191,6 @@ with col5:
     st.write("")
     if st.button("→ Open Batch Overview", use_container_width=True, type="primary"):
         st.switch_page("pages/5_Batch_Overview.py")
-
-# ── Data sources & disclaimer ─────────────────────────────────────────────────
-st.divider()
-with st.expander("📚 Data Sources & Disclaimer"):
-    st.markdown("""
-**Soil data sources:**
-- USDA NRCS SSURGO (Soil Survey Geographic Database) via [Soil Data Access REST API](https://SDMDataAccess.nrcs.usda.gov)
-- Spatial lookup by [SDA_Get_Mukey_from_intersection_with_WktWgs84](https://sdmdataaccess.nrcs.usda.gov/QueryFunctions.aspx) — same data used by [SoilWeb](https://casoilresource.lawr.ucdavis.edu/gmap/)
-- Address geocoding by [US Census Geocoder](https://geocoding.geo.census.gov)
-
-**Nutrient targets:**
-Derived from NY State extension frameworks, peer-reviewed cannabis agronomy literature,
-and licensed crop advisor (CCA) guidance for northeastern US hemp/cannabis production.
-Targets are expressed as Mehlich III equivalents.
-
-**Amendment recommendations:**
-Based on general agronomic principles and NY State soil management guidelines.
-Rates are representative ranges — actual application rates should be determined
-with a certified crop advisor based on field-specific conditions.
-
-**Disclaimer:**
-This tool is for educational and planning purposes only. It does not constitute
-professional agronomic advice. Always consult a certified crop advisor (CCA),
-licensed agronomist, or your local Cornell Cooperative Extension office before
-making large-scale amendment applications. Compliance with all applicable
-New York State Cannabis Control Board regulations is the grower's responsibility.
-""")
 
 st.caption("Built for NYS licensed cultivators · Data: USDA NRCS + US Census Geocoder · "
            "Targets: NY State Extension / CCE agronomic frameworks")
