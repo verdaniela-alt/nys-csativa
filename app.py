@@ -192,5 +192,29 @@ with col5:
     if st.button("→ Open Batch Overview", use_container_width=True, type="primary"):
         st.switch_page("pages/5_Batch_Overview.py")
 
+st.write("")
+col6, col7 = st.columns(2, gap="large")
+
+with col6:
+    st.markdown("""
+<div class="tool-card">
+  <h3>📋 CIP Form Builder <span class="badge badge-live">LIVE</span></h3>
+  <p>Guided form that generates a submission-ready NYS OCM Community Impact Plan (.docx).</p>
+  <ul>
+    <li>Step-by-step tabs for all 7 CIP sections</li>
+    <li>Pre-filled narrative paragraphs from your answers</li>
+    <li>Character count indicators per OCM limits</li>
+    <li>Timeline table and budget estimator included</li>
+    <li>Download as Microsoft Word (.docx)</li>
+  </ul>
+</div>
+""", unsafe_allow_html=True)
+    st.write("")
+    if st.button("→ Open CIP Form Builder", use_container_width=True, type="primary"):
+        st.switch_page("pages/6_CIP_Form.py")
+
+with col7:
+    st.write("")
+
 st.caption("Built for NYS licensed cultivators · Data: USDA NRCS + US Census Geocoder · "
            "Targets: NY State Extension / CCE agronomic frameworks")
