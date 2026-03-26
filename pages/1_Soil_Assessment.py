@@ -175,7 +175,14 @@ with st.expander("🌿 Step 2: Crop Type & Laboratory", expanded=True):
     crop_key = "hemp" if "Hemp" in crop else "mj"
 
     if "Modified Morgan" in lab:
-        st.info("ℹ️ **Modified Morgan detected.** P will be multiplied ×2.2 and K ×1.2 to approximate Mehlich III before comparing to targets.")
+        st.info(
+            "ℹ️ **Dairy One / Agro-One (Modified Morgan) detected.**  \n"
+            "P will be multiplied ×2.2 and K ×1.2 to approximate Mehlich III equivalents.  \n"
+            "**Important:** Dairy One / Agro-One reports P, K, Ca, Mg, Mn, Zn, and Al in **lbs/acre** — "
+            "set all three unit selectors below to **lbs / acre**.  \n"
+            "Fe is reported without a unit label on the report (likely ppm — leave the micronutrient unit as ppm for Fe).  \n"
+            "S, Cu, and B are not typically reported by Dairy One / Agro-One."
+        )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 3 — SOIL TEST INPUT
@@ -235,23 +242,23 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
 
     # ── Per-nutrient help text ────────────────────────────────────────────
     help_texts = {
-        "pH":                  "Dimensionless. Look for 'pH', 'Soil pH', or 'pH (1:1 water)' on your report.",
-        "Organic Matter":      "Always enter as %. Look for 'Organic Matter %' or 'OM %'.",
-        "P (Phosphorus)":      f"Dairy One: use 'Mod. Morgan P. ppm' column. Modified Morgan values will be auto-converted (×2.2).",
-        "K (Potassium)":       f"Dairy One: use 'Mod. Morgan K. ppm' column. Modified Morgan values will be auto-converted (×1.2).",
-        "Ca (Calcium)":        f"Dairy One: use 'Mod. Morgan Ca. ppm'. This is NOT the same as Base Saturation Ca%.",
-        "Mg (Magnesium)":      f"Dairy One: use 'Mod. Morgan Mg. ppm'.",
-        "S (Sulfur)":          f"Dairy One: use 'Mod. Morgan S. ppm'.",
-        "Zn (Zinc)":           f"Dairy One: use 'Mod. Morgan Zn. ppm'.",
-        "Mn (Manganese)":      f"Dairy One: use 'Mod. Morgan Mn. ppm'.",
-        "Fe (Iron)":           f"Dairy One: use 'Mod. Morgan Fe. ppm'.",
-        "Cu (Copper)":         f"Dairy One: use 'Mod. Morgan Cu. ppm'.",
-        "B (Boron)":           f"Dairy One: use 'HWS Boron' or 'Mod. Morgan B. ppm'.",
-        "Na (Sodium)":         f"Dairy One: use 'Mod. Morgan Na. ppm'.",
-        "Al (Aluminum)":       f"Dairy One: use 'Mod. Morgan Al. ppm'.",
+        "pH":                  "Dimensionless. Look for 'pH' or 'Soil pH' on your report.",
+        "Organic Matter":      "Always enter as %. Look for '%OM' or 'Organic Matter %'.",
+        "P (Phosphorus)":      "Dairy One/Agro-One: enter the lbs/acre value (e.g. 9) and set unit to lbs/acre above. MM value auto-converted ×2.2 to Mehlich III.",
+        "K (Potassium)":       "Dairy One/Agro-One: enter the lbs/acre value and set unit to lbs/acre above. MM value auto-converted ×1.2 to Mehlich III.",
+        "Ca (Calcium)":        "Dairy One/Agro-One: enter the lbs/acre value and set unit to lbs/acre. This is NOT the same as Base Saturation Ca%.",
+        "Mg (Magnesium)":      "Dairy One/Agro-One: enter the lbs/acre value and set unit to lbs/acre.",
+        "S (Sulfur)":          "Dairy One/Agro-One: S is not typically reported. Leave blank if not on your report.",
+        "Zn (Zinc)":           "Dairy One/Agro-One: reported in lbs/acre — set micronutrient unit to lbs/acre.",
+        "Mn (Manganese)":      "Dairy One/Agro-One: reported in lbs/acre — set micronutrient unit to lbs/acre.",
+        "Fe (Iron)":           "Dairy One/Agro-One: Fe appears without unit label on the report — enter as ppm (leave unit selector at ppm).",
+        "Cu (Copper)":         "Dairy One/Agro-One: Cu not typically reported. Leave blank if not on your report.",
+        "B (Boron)":           "Dairy One/Agro-One: B not typically reported. Leave blank if not on your report.",
+        "Na (Sodium)":         "Dairy One/Agro-One: Na not typically reported. Leave blank if not on your report.",
+        "Al (Aluminum)":       "Dairy One/Agro-One: reported in lbs/acre — set Salts & Other unit to lbs/acre.",
         "CEC":                 "Always enter in meq/100g. Also reported as 'Total Exchange Capacity (M.E.)' or 'T.E.C.' on some lab reports — these are the same thing.",
-        "Base Saturation Ca%": "Always enter as %. This is the % of CEC occupied by Ca ions — different from Ca in ppm.",
-        "Base Saturation K%":  "Always enter as %. This is the % of CEC occupied by K ions — different from K in ppm.",
+        "Base Saturation Ca%": "Always enter as %. This is the % of CEC occupied by Ca ions — different from Ca in lbs/acre.",
+        "Base Saturation K%":  "Always enter as %. This is the % of CEC occupied by K ions — different from K in lbs/acre.",
     }
 
     groups = {
@@ -321,16 +328,20 @@ if st.session_state.assessment_done:
         nname = n["name"]
         raw   = user_values.get(nname)
 
+        unit_str = n["unit"] if n["unit"] != "—" else ""
+
         if raw is None:
+            t_min = n["hemp_min"] if crop_key == "hemp" else n["mj_min"]
+            t_max = n["hemp_max"] if crop_key == "hemp" else n["mj_max"]
             rows.append({
-                "Nutrient":         nname,
-                "Unit (target)":    n["unit"],
-                "Value entered":    "—",
-                "Value (ppm equiv)":"—",
-                "Target min":       n["hemp_min"] if crop_key == "hemp" else n["mj_min"],
-                "Target max":       n["hemp_max"] if crop_key == "hemp" else n["mj_max"],
-                "Status":           "— No data",
-                "Note":             n["note"],
+                "Nutrient":              nname,
+                "Unit (target)":         n["unit"],
+                "Value entered":         "—",
+                "Conversion → ppm equiv":"—",
+                "Target min":            f"{t_min} {unit_str}".strip(),
+                "Target max":            f"{t_max} {unit_str}".strip(),
+                "Status":                "— No data",
+                "Note":                  n["note"],
             })
             continue
 
@@ -354,16 +365,25 @@ if st.session_state.assessment_done:
             status = "✓ ADEQUATE"
 
         needs_conv = (unit_conv != 1.0 or mm_conv != 1.0)
-        show_conv  = converted if needs_conv else "—"
+        if needs_conv:
+            eq_parts = [str(raw)]
+            if unit_conv != 1.0:
+                eq_parts.append(str(unit_conv))
+            if mm_conv != 1.0:
+                eq_parts.append(str(mm_conv))
+            show_conv = " × ".join(eq_parts) + f" = {converted} ppm"
+        else:
+            show_conv = "—"
+
         rows.append({
-            "Nutrient":         nname,
-            "Unit (target)":    n["unit"],
-            "Value entered":    raw,
-            "Value (ppm equiv)":show_conv,
-            "Target min":       t_min,
-            "Target max":       t_max,
-            "Status":           status,
-            "Note":             n["note"],
+            "Nutrient":              nname,
+            "Unit (target)":         n["unit"],
+            "Value entered":         raw,
+            "Conversion → ppm equiv":show_conv,
+            "Target min":            f"{t_min} {unit_str}".strip(),
+            "Target max":            f"{t_max} {unit_str}".strip(),
+            "Status":                status,
+            "Note":                  n["note"],
         })
 
     df = pd.DataFrame(rows)
