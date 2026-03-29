@@ -330,30 +330,54 @@ if st.session_state.assessment_done:
 
         unit_str = n["unit"] if n["unit"] != "—" else ""
 
-        if raw is None:
-            t_min = n["hemp_min"] if crop_key == "hemp" else n["mj_min"]
-            t_max = n["hemp_max"] if crop_key == "hemp" else n["mj_max"]
-            rows.append({
-                "Nutrient":              nname,
-                "Unit (target)":         n["unit"],
-                "Value entered":         "—",
-                "Conversion → ppm equiv":"—",
-                "Target min":            f"{t_min} {unit_str}".strip(),
-                "Target max":            f"{t_max} {unit_str}".strip(),
-                "Status":                "— No data",
-                "Note":                  n["note"],
-            })
-            continue
-
-        # 1. Convert section unit → ppm (only for nutrients that allow it)
+        # Compute conversion factors up front (needed even when raw is None,
+        # so we can show targets in the user's entered units for every row)
         entered_unit = section_unit_map.get(nname, "ppm (mg/kg)")
         unit_conv    = UNIT_CONVERSIONS.get(entered_unit, 1.0) if n["allow_unit_conversion"] else 1.0
-        # 2. Apply Modified Morgan → Mehlich III factor
-        mm_conv   = lab_factors.get(nname, 1.0)
-        converted = round(raw * unit_conv * mm_conv, 2)
+        mm_conv      = lab_factors.get(nname, 1.0)
 
         t_min = n["hemp_min"] if crop_key == "hemp" else n["mj_min"]
         t_max = n["hemp_max"] if crop_key == "hemp" else n["mj_max"]
+
+        # Targets in Mehlich III units (ppm or native unit for fixed nutrients)
+        t_min_m3 = f"{t_min} {unit_str}".strip()
+        t_max_m3 = f"{t_max} {unit_str}".strip()
+
+        # Targets converted back to the user's entered units (reverse of the
+        # conversion pipeline: M3_ppm ÷ mm_conv ÷ unit_conv)
+        needs_target_conv = n["allow_unit_conversion"] and (unit_conv != 1.0 or mm_conv != 1.0)
+        if needs_target_conv:
+            factor = unit_conv * mm_conv  # combined forward factor
+            t_min_eu = round(t_min / factor, 1)
+            t_max_eu = round(t_max / factor, 1)
+            if "lbs" in entered_unit:
+                eu_label = "lbs/ac"
+            elif "kg" in entered_unit:
+                eu_label = "kg/ha"
+            else:
+                eu_label = "ppm"
+            t_min_eu_str = f"{t_min_eu} {eu_label}"
+            t_max_eu_str = f"{t_max_eu} {eu_label}"
+        else:
+            t_min_eu_str = "—"   # same as M3 column; no need to repeat
+            t_max_eu_str = "—"
+
+        if raw is None:
+            rows.append({
+                "Nutrient":                  nname,
+                "Value entered":             "—",
+                "Conversion → M3 ppm":       "—",
+                "Target min (M3 ppm)":       t_min_m3,
+                "Target max (M3 ppm)":       t_max_m3,
+                "Target min (your units)":   t_min_eu_str,
+                "Target max (your units)":   t_max_eu_str,
+                "Status":                    "— No data",
+                "Note":                      n["note"],
+            })
+            continue
+
+        # ── Has data ─────────────────────────────────────────────────────────
+        converted = round(raw * unit_conv * mm_conv, 2)
 
         if converted < t_min:
             status = "⚠ DEFICIENT"
@@ -364,26 +388,34 @@ if st.session_state.assessment_done:
         else:
             status = "✓ ADEQUATE"
 
+        # Build labeled conversion equation
         needs_conv = (unit_conv != 1.0 or mm_conv != 1.0)
         if needs_conv:
-            eq_parts = [str(raw)]
+            eq = str(raw)
             if unit_conv != 1.0:
-                eq_parts.append(str(unit_conv))
+                if "lbs" in entered_unit:
+                    eu_abbrev = "lbs/ac"
+                elif "kg" in entered_unit:
+                    eu_abbrev = "kg/ha"
+                else:
+                    eu_abbrev = entered_unit
+                eq += f" × {unit_conv} ({eu_abbrev}→ppm)"
             if mm_conv != 1.0:
-                eq_parts.append(str(mm_conv))
-            show_conv = " × ".join(eq_parts) + f" = {converted} ppm"
+                eq += f" × {mm_conv} (MM→M3)"
+            show_conv = f"{eq} = {converted} ppm"
         else:
             show_conv = "—"
 
         rows.append({
-            "Nutrient":              nname,
-            "Unit (target)":         n["unit"],
-            "Value entered":         raw,
-            "Conversion → ppm equiv":show_conv,
-            "Target min":            f"{t_min} {unit_str}".strip(),
-            "Target max":            f"{t_max} {unit_str}".strip(),
-            "Status":                status,
-            "Note":                  n["note"],
+            "Nutrient":                  nname,
+            "Value entered":             raw,
+            "Conversion → M3 ppm":       show_conv,
+            "Target min (M3 ppm)":       t_min_m3,
+            "Target max (M3 ppm)":       t_max_m3,
+            "Target min (your units)":   t_min_eu_str,
+            "Target max (your units)":   t_max_eu_str,
+            "Status":                    status,
+            "Note":                      n["note"],
         })
 
     df = pd.DataFrame(rows)
