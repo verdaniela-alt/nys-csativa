@@ -2,36 +2,148 @@
 nutrient_data.py — Nutrient targets, amendments, and NY soil reference data
 for the NY Cannabis/Hemp Soil Assessment Tool.
 
-All targets expressed as Mehlich III equivalents (ppm unless noted).
-Modified Morgan values should be converted before comparison:
+M3 targets (hemp_min/max, mj_min/max) are expressed as Mehlich III equivalents
+(ppm unless noted). Modified Morgan values should be converted before comparison:
     P  × 2.2  →  M3 equiv
     K  × 1.2  →  M3 equiv
     (all other nutrients: MM ≈ M3 for practical purposes)
+
+MM targets (mm_hemp_min/max, mm_mj_min/max) are expressed in Modified Morgan
+lbs/acre units, based on Dairy One / Agro-One calibration (Cornell-backed).
+When the user selects a Modified Morgan lab AND enters values in lbs/acre, these
+targets are used directly — no unit or MM→M3 conversion is applied.
+Set to None for nutrients where MM lbs/acre targets are not defined.
 """
 
 # ── Nutrient targets ────────────────────────────────────────────────────────
-# Each dict: name, unit, hemp_min, hemp_max, mj_min, mj_max, note, mm_factor
-# mm_factor: multiply raw Modified Morgan value to get Mehlich III equivalent
-# input_unit: the unit the target values are expressed in (for display)
+# M3 targets (ppm, Mehlich III) and MM targets (lbs/acre, Modified Morgan)
 # allow_unit_conversion: whether to offer ppm/lbs/kg conversion for this nutrient
 NUTRIENTS = [
-    dict(name="pH",               unit="—",          hemp_min=6.0,  hemp_max=7.0,  mj_min=6.0,  mj_max=7.0,  note="Target 6.2–6.8 for optimal nutrient availability", mm_factor=1.0, allow_unit_conversion=False),
-    dict(name="Organic Matter",   unit="%",           hemp_min=3.0,  hemp_max=8.0,  mj_min=3.0,  mj_max=8.0,  note="Higher OM improves CEC, water-holding, and microbial activity", mm_factor=1.0, allow_unit_conversion=False),
-    dict(name="P (Phosphorus)",   unit="ppm",         hemp_min=50,   hemp_max=200,  mj_min=60,   mj_max=200,  note="Mehlich III; MM × 2.2 for equiv.", mm_factor=2.2, allow_unit_conversion=True),
-    dict(name="K (Potassium)",    unit="ppm",         hemp_min=150,  hemp_max=350,  mj_min=150,  mj_max=400,  note="Mehlich III; MM × 1.2 for equiv.", mm_factor=1.2, allow_unit_conversion=True),
-    dict(name="Ca (Calcium)",     unit="ppm",         hemp_min=1500, hemp_max=5000, mj_min=1500, mj_max=5000, note="Aim for Ca:Mg ratio 5:1 to 8:1", mm_factor=1.0, allow_unit_conversion=True),
-    dict(name="Mg (Magnesium)",   unit="ppm",         hemp_min=150,  hemp_max=500,  mj_min=150,  mj_max=500,  note="Deficiency causes interveinal chlorosis", mm_factor=1.0, allow_unit_conversion=True),
-    dict(name="S (Sulfur)",       unit="ppm",         hemp_min=10,   hemp_max=50,   mj_min=10,   mj_max=50,   note="Important for terpene and cannabinoid synthesis", mm_factor=1.0, allow_unit_conversion=True),
-    dict(name="Zn (Zinc)",        unit="ppm",         hemp_min=1.5,  hemp_max=6.0,  mj_min=2.0,  mj_max=8.0,  note="DTPA extraction; critical for flower and terpene quality", mm_factor=1.0, allow_unit_conversion=True),
-    dict(name="Mn (Manganese)",   unit="ppm",         hemp_min=5,    hemp_max=50,   mj_min=5,    mj_max=50,   note="Availability drops above pH 7", mm_factor=1.0, allow_unit_conversion=True),
-    dict(name="Fe (Iron)",        unit="ppm",         hemp_min=20,   hemp_max=100,  mj_min=20,   mj_max=100,  note="High Fe can tie up Mn and Zn", mm_factor=1.0, allow_unit_conversion=True),
-    dict(name="Cu (Copper)",      unit="ppm",         hemp_min=0.5,  hemp_max=5.0,  mj_min=0.5,  mj_max=5.0,  note="Enzyme cofactor; toxic above 10 ppm", mm_factor=1.0, allow_unit_conversion=True),
-    dict(name="B (Boron)",        unit="ppm",         hemp_min=0.5,  hemp_max=2.0,  mj_min=0.5,  mj_max=2.0,  note="HWS extraction; narrow deficiency/toxicity window", mm_factor=1.0, allow_unit_conversion=True),
-    dict(name="Na (Sodium)",      unit="ppm",         hemp_min=0,    hemp_max=75,   mj_min=0,    mj_max=50,   note="Excess causes salt stress; MJ more sensitive", mm_factor=1.0, allow_unit_conversion=True),
-    dict(name="Al (Aluminum)",    unit="ppm",         hemp_min=0,    hemp_max=50,   mj_min=0,    mj_max=30,   note="Elevated Al indicates low pH; root toxicity risk", mm_factor=1.0, allow_unit_conversion=True),
-    dict(name="CEC",              unit="meq/100g",    hemp_min=10,   hemp_max=40,   mj_min=10,   mj_max=40,   note="Also reported as 'Total Exchange Capacity (M.E.)' — same thing", mm_factor=1.0, allow_unit_conversion=False),
-    dict(name="Base Saturation Ca%", unit="%",        hemp_min=65,   hemp_max=80,   mj_min=65,   mj_max=80,   note="Ca should dominate cation exchange sites", mm_factor=1.0, allow_unit_conversion=False),
-    dict(name="Base Saturation K%",  unit="%",        hemp_min=2,    hemp_max=5,    mj_min=2,    mj_max=5,    note="K% >5 may suppress Mg uptake", mm_factor=1.0, allow_unit_conversion=False),
+    dict(name="pH",
+         unit="—",
+         hemp_min=6.0,  hemp_max=7.0,  mj_min=6.0,  mj_max=7.0,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="Target 6.2–6.8 for optimal nutrient availability",
+         mm_factor=1.0, allow_unit_conversion=False),
+
+    dict(name="Organic Matter",
+         unit="%",
+         hemp_min=3.0,  hemp_max=8.0,  mj_min=3.0,  mj_max=8.0,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="Higher OM improves CEC, water-holding, and microbial activity",
+         mm_factor=1.0, allow_unit_conversion=False),
+
+    dict(name="P (Phosphorus)",
+         unit="ppm",
+         hemp_min=50,   hemp_max=200,  mj_min=50,   mj_max=200,
+         # MM lbs/acre targets: Agro-One "Optimum" ≈ 7–15 lbs/acre for most crops;
+         # cannabis upper range extended slightly as a heavier feeder
+         mm_hemp_min=5,  mm_hemp_max=20,  mm_mj_min=6,  mm_mj_max=25,
+         note="Mehlich III (ppm) or Agro-One Modified Morgan (lbs/acre) — see lab selection",
+         mm_factor=2.2, allow_unit_conversion=True),
+
+    dict(name="K (Potassium)",
+         unit="ppm",
+         hemp_min=150,  hemp_max=350,  mj_min=150,  mj_max=400,
+         # MM lbs/acre targets: Agro-One "Optimum" ≈ 100–200 lbs/acre for most crops;
+         # cannabis upper range extended as a K-demanding crop
+         mm_hemp_min=100, mm_hemp_max=300, mm_mj_min=100, mm_mj_max=350,
+         note="Mehlich III (ppm) or Agro-One Modified Morgan (lbs/acre) — see lab selection",
+         mm_factor=1.2, allow_unit_conversion=True),
+
+    dict(name="Ca (Calcium)",
+         unit="ppm",
+         hemp_min=1500, hemp_max=5000, mj_min=1500, mj_max=5000,
+         # Ca MM ≈ M3 in lbs/acre (extraction efficiency similar)
+         mm_hemp_min=1500, mm_hemp_max=4500, mm_mj_min=1500, mm_mj_max=4500,
+         note="Aim for Ca:Mg ratio 5:1 to 8:1",
+         mm_factor=1.0, allow_unit_conversion=True),
+
+    dict(name="Mg (Magnesium)",
+         unit="ppm",
+         hemp_min=150,  hemp_max=500,  mj_min=150,  mj_max=500,
+         mm_hemp_min=100, mm_hemp_max=400, mm_mj_min=100, mm_mj_max=400,
+         note="Deficiency causes interveinal chlorosis",
+         mm_factor=1.0, allow_unit_conversion=True),
+
+    dict(name="S (Sulfur)",
+         unit="ppm",
+         hemp_min=10,   hemp_max=50,   mj_min=10,   mj_max=50,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="Important for terpene and cannabinoid synthesis",
+         mm_factor=1.0, allow_unit_conversion=True),
+
+    dict(name="Zn (Zinc)",
+         unit="ppm",
+         hemp_min=1.5,  hemp_max=6.0,  mj_min=2.0,  mj_max=8.0,
+         mm_hemp_min=1.0, mm_hemp_max=5.0, mm_mj_min=1.0, mm_mj_max=6.0,
+         note="DTPA extraction; critical for flower and terpene quality",
+         mm_factor=1.0, allow_unit_conversion=True),
+
+    dict(name="Mn (Manganese)",
+         unit="ppm",
+         hemp_min=5,    hemp_max=50,   mj_min=5,    mj_max=50,
+         mm_hemp_min=5,  mm_hemp_max=50,  mm_mj_min=5,  mm_mj_max=50,
+         note="Availability drops above pH 7",
+         mm_factor=1.0, allow_unit_conversion=True),
+
+    dict(name="Fe (Iron)",
+         unit="ppm",
+         hemp_min=20,   hemp_max=100,  mj_min=20,   mj_max=100,
+         # Agro-One Fe reported without unit (likely ppm) — treat as ppm, no MM target
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="High Fe can tie up Mn and Zn. Agro-One Fe is reported without unit — enter as ppm.",
+         mm_factor=1.0, allow_unit_conversion=True),
+
+    dict(name="Cu (Copper)",
+         unit="ppm",
+         hemp_min=0.5,  hemp_max=5.0,  mj_min=0.5,  mj_max=5.0,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="Enzyme cofactor; toxic above 10 ppm",
+         mm_factor=1.0, allow_unit_conversion=True),
+
+    dict(name="B (Boron)",
+         unit="ppm",
+         hemp_min=0.5,  hemp_max=2.0,  mj_min=0.5,  mj_max=2.0,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="HWS extraction; narrow deficiency/toxicity window",
+         mm_factor=1.0, allow_unit_conversion=True),
+
+    dict(name="Na (Sodium)",
+         unit="ppm",
+         hemp_min=0,    hemp_max=75,   mj_min=0,    mj_max=50,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="Excess causes salt stress; MJ more sensitive",
+         mm_factor=1.0, allow_unit_conversion=True),
+
+    dict(name="Al (Aluminum)",
+         unit="ppm",
+         hemp_min=0,    hemp_max=50,   mj_min=0,    mj_max=30,
+         # Agro-One reports Al in lbs/acre; elevated Al indicates low pH
+         mm_hemp_min=0,  mm_hemp_max=100, mm_mj_min=0,  mm_mj_max=75,
+         note="Elevated Al indicates low pH; root toxicity risk",
+         mm_factor=1.0, allow_unit_conversion=True),
+
+    dict(name="CEC",
+         unit="meq/100g",
+         hemp_min=10,   hemp_max=40,   mj_min=10,   mj_max=40,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="Also reported as 'Total Exchange Capacity (M.E.)' — same thing",
+         mm_factor=1.0, allow_unit_conversion=False),
+
+    dict(name="Base Saturation Ca%",
+         unit="%",
+         hemp_min=65,   hemp_max=80,   mj_min=65,   mj_max=80,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="Ca should dominate cation exchange sites",
+         mm_factor=1.0, allow_unit_conversion=False),
+
+    dict(name="Base Saturation K%",
+         unit="%",
+         hemp_min=2,    hemp_max=5,    mj_min=2,    mj_max=5,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="K% >5 may suppress Mg uptake",
+         mm_factor=1.0, allow_unit_conversion=False),
 ]
 
 # ── Unit conversion factors to ppm ──────────────────────────────────────────
