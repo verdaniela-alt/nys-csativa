@@ -54,15 +54,16 @@ NUTRIENTS = [
     dict(name="Ca (Calcium)",
          unit="ppm",
          hemp_min=1500, hemp_max=5000, mj_min=1500, mj_max=5000,
-         # Ca MM ≈ M3 in lbs/acre (extraction efficiency similar)
-         mm_hemp_min=1500, mm_hemp_max=4500, mm_mj_min=1500, mm_mj_max=4500,
+         # Agro-One Ca: Optimum ≈ 1000–2500 lbs/acre; >2500 = High/Very High
+         mm_hemp_min=1000, mm_hemp_max=2500, mm_mj_min=1000, mm_mj_max=2500,
          note="Aim for Ca:Mg ratio 5:1 to 8:1",
          mm_factor=1.0, allow_unit_conversion=True),
 
     dict(name="Mg (Magnesium)",
          unit="ppm",
          hemp_min=150,  hemp_max=500,  mj_min=150,  mj_max=500,
-         mm_hemp_min=100, mm_hemp_max=400, mm_mj_min=100, mm_mj_max=400,
+         # Agro-One Mg: Optimum ≈ 100–200 lbs/acre; >200 = High/Very High
+         mm_hemp_min=100, mm_hemp_max=200, mm_mj_min=100, mm_mj_max=200,
          note="Deficiency causes interveinal chlorosis",
          mm_factor=1.0, allow_unit_conversion=True),
 
