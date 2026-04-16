@@ -86,7 +86,10 @@ VC_KEYS = [
     ("Packaging & Supplies",        "vc_packaging"),
     ("Testing / Lab Fees (COA)",    "vc_testing"),
     ("Other Variable Costs",        "vc_other"),
+    # Excise tax is only shown/used for Cannabis (MJ) — handled separately in render/compute
 ]
+
+NYS_EXCISE_RATE = 0.09   # 9% of gross wholesale revenue — NYS TP-600
 
 FC_KEYS = [
     ("Land Rent / Lease",               "fc_land"),
@@ -110,16 +113,21 @@ def render_scenario(i):
 
     # ── 1. Operation Setup ────────────────────────────────────────────────
     with st.expander("🏗️ 1. Operation Setup", expanded=True):
-        c1, c2, c3 = st.columns(3)
+        c1, c2, c3, c4 = st.columns(4)
         with c1:
             st.text_input("Scenario name",
                           value=st.session_state.get(f"{p}name", f"Scenario {i+1}"),
                           key=f"{p}name",
                           help="E.g. 'Outdoor Round 1', 'Greenhouse Auto', 'Indoor Photo'")
         with c2:
+            st.selectbox("Crop type", ["Cannabis (MJ)", "Hemp"],
+                         key=f"{p}crop_type",
+                         help="Cannabis (MJ): subject to NYS 9% excise tax and federal §280E. "
+                              "Hemp: federally legal — standard deductions apply, no excise tax.")
+        with c3:
             st.selectbox("Operation type", ["Outdoor", "Greenhouse", "Indoor"],
                          key=f"{p}op_type")
-        with c3:
+        with c4:
             st.selectbox("Plant type", ["Photoperiod", "Autoflower"],
                          key=f"{p}plant_type")
 
@@ -232,6 +240,32 @@ def render_scenario(i):
         total_hrs2 = sum(gv(f"{p}{s}") for _, s in LABOR_TASKS)
         total_lbr2 = wage2 * total_hrs2
         total_vc   = sum(gv(f"{p}{s}") for _, s in VC_KEYS) + total_lbr2
+
+        # ── NYS Excise Tax — Cannabis (MJ) only ───────────────────────────
+        _is_mj = st.session_state.get(f"{p}crop_type", "Cannabis (MJ)") == "Cannabis (MJ)"
+        if _is_mj:
+            ty_vc  = gv(f"{p}n_plants") * gv(f"{p}yield_pp") * int(gv(f"{p}cycles", 1))
+            fl_p   = gv(f"{p}fl_price"); pr_p = gv(f"{p}pr_price"); ex_p = gv(f"{p}ex_price")
+            fl_pct = gv(f"{p}fl_pct");   pr_pct = gv(f"{p}pr_pct"); ex_pct = gv(f"{p}ex_pct")
+            rev_est   = ty_vc * (fl_pct/100*fl_p + pr_pct/100*pr_p + ex_pct/100*ex_p)
+            excise_est = round(rev_est * NYS_EXCISE_RATE, 2)
+            st.divider()
+            st.markdown("**NYS Cannabis Excise Tax — Cannabis (MJ) only**")
+            st.caption(
+                "9% of gross wholesale revenue. Remit quarterly via **NYS TP-600**. "
+                "Treated as COGS (Account 5100) — deductible under §280E federally and in NYS. "
+                "Auto-estimated from your revenue inputs; edit if your actual figure differs."
+            )
+            st.number_input(
+                "NYS Excise Tax — 9% of gross revenue ($)",
+                min_value=0.0, step=10.0,
+                value=float(excise_est) if excise_est > 0 else 0.0,
+                key=f"{p}vc_excise",
+                help=f"Auto-estimate: ${excise_est:,.0f}  (9% × ${rev_est:,.0f} estimated revenue). "
+                     "Fill in Step 6 prices first for an accurate estimate.",
+            )
+            total_vc += gv(f"{p}vc_excise")
+
         st.metric("Total Variable Costs (incl. labor)", f"${total_vc:,.0f}")
 
     # ── 5. Fixed Costs ────────────────────────────────────────────────────
@@ -332,6 +366,10 @@ def compute_scenario(i):
     vc_vals = {label: gv(f"{p}{s}") for label, s in VC_KEYS}
     total_vc = sum(vc_vals.values()) + total_lbr
 
+    is_mj     = st.session_state.get(f"{p}crop_type", "Cannabis (MJ)") == "Cannabis (MJ)"
+    excise_tax = gv(f"{p}vc_excise") if is_mj else 0.0
+    total_vc  += excise_tax
+
     fc_vals = {label: gv(f"{p}{s}") for label, s in FC_KEYS}
     total_fc = sum(fc_vals.values())
 
@@ -342,33 +380,51 @@ def compute_scenario(i):
     ex_rev = t_yield * gv(f"{p}ex_pct") / 100 * gv(f"{p}ex_price")
     total_rev = fl_rev + pr_rev + ex_rev
 
-    wt_price = total_rev / t_yield if t_yield > 0 else 0
+    wt_price  = total_rev / t_yield if t_yield > 0 else 0
     bep_price = total_costs / t_yield if t_yield > 0 else 0
     bep_yield = total_costs / wt_price if wt_price > 0 else 0
 
+    # 280E analysis (MJ only)
+    # Federal: only COGS (variable costs) deductible
+    # NYS: all expenses deductible (decoupled from 280E since 1/1/2023)
+    fed_taxable_income = total_rev - total_vc if is_mj else total_rev - total_costs
+    nys_taxable_income = total_rev - total_costs
+    fed_tax_est        = max(fed_taxable_income * 0.24, 0) if is_mj else max(fed_taxable_income * 0.24, 0)
+    nys_tax_est        = max(nys_taxable_income * 0.0685, 0)
+    e280_penalty       = fed_tax_est - max((total_rev - total_costs) * 0.24, 0) if is_mj else 0
+
     return {
-        "name":            st.session_state.get(f"{p}name", f"Scenario {i+1}"),
-        "op_type":         st.session_state.get(f"{p}op_type", "Outdoor"),
-        "plant_type":      st.session_state.get(f"{p}plant_type", "Photoperiod"),
-        "area_sqft":       area,
-        "acres":           acres,
-        "cycles":          cycles,
-        "total_yield_lbs": t_yield,
-        "total_labor":     total_lbr,
-        "labor_hours":     total_hrs,
-        "vc_breakdown":    {"Labor": total_lbr, **vc_vals},
-        "total_vc":        total_vc,
-        "fc_breakdown":    fc_vals,
-        "total_fc":        total_fc,
-        "total_costs":     total_costs,
-        "rev_breakdown":   {"Flower": fl_rev, "Pre-rolls": pr_rev, "Extraction": ex_rev},
-        "total_revenue":   total_rev,
-        "gross_margin":    total_rev - total_vc,
-        "net_return":      total_rev - total_costs,
-        "cost_per_lb":     total_costs / t_yield if t_yield > 0 else 0,
-        "breakeven_price": bep_price,
-        "breakeven_yield": bep_yield,
+        "name":               st.session_state.get(f"{p}name", f"Scenario {i+1}"),
+        "crop_type":          st.session_state.get(f"{p}crop_type", "Cannabis (MJ)"),
+        "op_type":            st.session_state.get(f"{p}op_type", "Outdoor"),
+        "plant_type":         st.session_state.get(f"{p}plant_type", "Photoperiod"),
+        "area_sqft":          area,
+        "acres":              acres,
+        "cycles":             cycles,
+        "total_yield_lbs":    t_yield,
+        "total_labor":        total_lbr,
+        "labor_hours":        total_hrs,
+        "vc_breakdown":       {"Labor": total_lbr, **vc_vals,
+                               **({"NYS Excise Tax (9%)": excise_tax} if is_mj and excise_tax > 0 else {})},
+        "excise_tax":         excise_tax,
+        "total_vc":           total_vc,
+        "fc_breakdown":       fc_vals,
+        "total_fc":           total_fc,
+        "total_costs":        total_costs,
+        "rev_breakdown":      {"Flower": fl_rev, "Pre-rolls": pr_rev, "Extraction": ex_rev},
+        "total_revenue":      total_rev,
+        "gross_margin":       total_rev - total_vc,
+        "net_return":         total_rev - total_costs,
+        "cost_per_lb":        total_costs / t_yield if t_yield > 0 else 0,
+        "breakeven_price":    bep_price,
+        "breakeven_yield":    bep_yield,
         "weighted_avg_price": wt_price,
+        "is_mj":              is_mj,
+        "fed_taxable_income": fed_taxable_income,
+        "nys_taxable_income": nys_taxable_income,
+        "fed_tax_est":        fed_tax_est,
+        "nys_tax_est":        nys_tax_est,
+        "e280_penalty":       e280_penalty,
     }
 
 
@@ -477,6 +533,68 @@ def render_summary(results):
         "Break-even yield = total costs ÷ weighted average price. "
         "A positive surplus means the operation covers all costs at current inputs."
     )
+
+    # ── §280E / Tax Analysis (MJ only) ───────────────────────────────────
+    mj_results = [r for r in results if r["is_mj"]]
+    if mj_results:
+        st.divider()
+        st.markdown("### 🏛️ Federal §280E & NYS Tax Analysis — Cannabis (MJ) Scenarios")
+        st.info(
+            "**IRS §280E** disallows deductions for businesses trafficking in Schedule I substances. "
+            "Cannabis (MJ) businesses may only deduct **COGS / variable costs** federally. "
+            "**NYS is decoupled** (Tax Law §208(9)(o), eff. 1/1/2023) — all expenses remain deductible in NY."
+        )
+        tax_rows = []
+        for r in mj_results:
+            penalty_pct = (r["e280_penalty"] / r["total_revenue"] * 100) if r["total_revenue"] > 0 else 0
+            tax_rows.append({
+                "Scenario":                        r["name"],
+                "Gross Revenue":                   f"${r['total_revenue']:,.0f}",
+                "COGS / Var. Costs (fed. deduct.)":f"${r['total_vc']:,.0f}",
+                "Fixed / Op. Costs (NYS only)":    f"${r['total_fc']:,.0f}",
+                "Fed. Taxable Income":             f"${r['fed_taxable_income']:,.0f}",
+                "NYS Taxable Income":              f"${r['nys_taxable_income']:,.0f}",
+                "Est. Federal Tax (24%)":          f"${r['fed_tax_est']:,.0f}",
+                "Est. NYS Tax (6.85%)":            f"${r['nys_tax_est']:,.0f}",
+                "§280E Penalty (extra fed. tax)":  f"${r['e280_penalty']:,.0f}  ({penalty_pct:.1f}% of revenue)",
+            })
+        st.dataframe(pd.DataFrame(tax_rows), use_container_width=True, hide_index=True)
+
+        # Bar chart: federal vs NYS taxable income
+        if HAS_PLOTLY and len(mj_results) > 0:
+            mj_names = [r["name"] for r in mj_results]
+            fig_tax = go.Figure()
+            fig_tax.add_trace(go.Bar(
+                name="Fed. Taxable Income (rev − COGS only)",
+                x=mj_names,
+                y=[r["fed_taxable_income"] for r in mj_results],
+                marker_color="#ef5350",
+            ))
+            fig_tax.add_trace(go.Bar(
+                name="NYS Taxable Income (rev − all costs)",
+                x=mj_names,
+                y=[r["nys_taxable_income"] for r in mj_results],
+                marker_color="#42a5f5",
+            ))
+            fig_tax.add_trace(go.Bar(
+                name="§280E Penalty (extra fed. tax)",
+                x=mj_names,
+                y=[r["e280_penalty"] for r in mj_results],
+                marker_color="#ff7043",
+            ))
+            fig_tax.update_layout(
+                barmode="group", yaxis_tickprefix="$",
+                yaxis_title="Dollars", height=360,
+                legend=dict(orientation="h", y=-0.25),
+            )
+            fig_tax.add_hline(y=0, line_dash="dash", line_color="gray")
+            st.plotly_chart(fig_tax, use_container_width=True)
+
+        st.caption(
+            "Federal tax rate: 24% flat (C-corp / illustrative). NYS rate: 6.85% (illustrative marginal rate). "
+            "§280E penalty = estimated federal tax under 280E minus what federal tax would be if all costs were deductible. "
+            "Consult a licensed CPA for your actual tax obligations."
+        )
 
     # ── Revenue breakdown stacked bar ────────────────────────────────────
     if len(results) > 0 and any(r["total_revenue"] > 0 for r in results):
