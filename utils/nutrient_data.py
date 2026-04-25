@@ -3,15 +3,22 @@ nutrient_data.py — Nutrient targets, amendments, and NY soil reference data
 for the NY Cannabis/Hemp Soil Assessment Tool.
 
 M3 targets (hemp_min/max, mj_min/max) are expressed as Mehlich III equivalents
-(ppm unless noted). Modified Morgan values should be converted before comparison:
-    P  × 2.2  →  M3 equiv
-    K  × 1.2  →  M3 equiv
-    (all other nutrients: MM ≈ M3 for practical purposes)
+(ppm unless noted).
 
-MM targets (mm_hemp_min/max, mm_mj_min/max) are expressed in Modified Morgan
-lbs/acre units, based on Dairy One / Agro-One calibration (Cornell-backed).
-When the user selects a Modified Morgan lab AND enters values in lbs/acre, these
-targets are used directly — no unit or MM→M3 conversion is applied.
+Modified Morgan (MM) → M3 equivalent conversion factors, based on Cornell NMSP
+Soil Test Conversion Tool v7 (Ketterings, Cornell, 2005) and paired lab data:
+    P  × 1.8  →  M3 ppm equiv  (A&L Eastern MM data, n=235, r²=0.97)
+    K  × 1.0  →  M3 ppm equiv  (UConn/UVM MM data, r²≈0.99; MM K ≈ M3 K)
+    Ca × 1.0  →  M3 ppm equiv  (Ca conversions near 1:1 when both in ppm)
+    Mg × 1.0  →  M3 ppm equiv  (Mg conversions near 1:1 when both in ppm)
+    (old factors of 2.2 for P and 1.2 for K were incorrect)
+
+Note: Dairy One uses Mehlich-III extraction (NOT Modified Morgan). Their values
+are already M3 equivalents — no conversion factor is applied.
+
+MM targets (mm_hemp_min/max, mm_mj_min/max) are in Modified Morgan lbs/acre.
+When the user selects a MM lab AND enters values in lbs/acre, these targets are
+used directly without any unit or MM→M3 conversion.
 Set to None for nutrients where MM lbs/acre targets are not defined.
 """
 
@@ -155,23 +162,35 @@ UNIT_CONVERSIONS = {
     "kg / ha":       0.446,   # kg/ha ÷ 2.24 = ppm
 }
 
-# ── Lab conversion factors (Modified Morgan → Mehlich III equiv) ─────────────
+# ── Lab conversion factors (Modified Morgan → Mehlich III equiv ppm) ─────────
+# Empty dict = Mehlich III lab (no conversion needed; values already M3 ppm).
+# Source: Cornell NMSP Soil Test Conversion Tool v7 (Ketterings, 2005).
 LAB_FACTORS = {
-    "Dairy One (Modified Morgan)": {
-        "P (Phosphorus)": 2.2,
-        "K (Potassium)":  1.2,
-    },
-    "Agro-One (Modified Morgan)": {
-        "P (Phosphorus)": 2.2,
-        "K (Potassium)":  1.2,
-    },
+    # Mehlich-III labs — no conversion needed
+    "Dairy One (Mehlich III)": {},
+    "Agro-One / DairyOne (Mehlich III)": {},
     "Logan Labs (Mehlich III)": {},
     "A&L Eastern (Mehlich III)": {},
-    "Cornell Nutrient Analysis (Mehlich III)": {},
+    "Cornell Nutrient Analysis Lab (Mehlich III)": {},
     "Other / Mehlich III": {},
+    # Modified Morgan labs — apply factors to convert MM ppm → M3 ppm equivalent.
+    # P: ×1.8 (Cornell NMSP; A&L Eastern MM data, r²=0.97)
+    # K: ×1.0 (UConn/UVM MM data; MM K ppm ≈ M3 K ppm, r²≈0.99)
+    "Agro-One (Modified Morgan)": {
+        "P (Phosphorus)": 1.8,
+        "K (Potassium)":  1.0,
+    },
+    # Cornell Soil Health Lab reports Modified Morgan in lbs/acre.
+    # Values are Cornell Morgan equivalents. Enter in lbs/acre — compared directly
+    # to mm_ lbs/acre targets (no M3 conversion needed).
+    "Cornell Soil Health Lab (Modified Morgan, lbs/acre)": {},
+    "UVM / UConn / UMass (Modified Morgan)": {
+        "P (Phosphorus)": 1.8,
+        "K (Potassium)":  1.0,
+    },
     "Other / Modified Morgan": {
-        "P (Phosphorus)": 2.2,
-        "K (Potassium)":  1.2,
+        "P (Phosphorus)": 1.8,
+        "K (Potassium)":  1.0,
     },
 }
 

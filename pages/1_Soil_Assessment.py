@@ -169,20 +169,177 @@ with st.expander("🌿 Step 2: Crop Type & Laboratory", expanded=True):
             "Soil Laboratory / Extraction Method",
             list(LAB_FACTORS.keys()),
             key="lab_select",
-            help="Selects the conversion method for P and K. Modified Morgan values are multiplied by 2.2 (P) and 1.2 (K) to estimate Mehlich III equivalents.",
+            help="Selects the conversion method for P and K. Modified Morgan labs (Agro-One MM, UVM/UConn/UMass): P ×1.8 and K ×1.0 to estimate Mehlich III equivalents (Cornell NMSP v7). Dairy One and Agro-One Mehlich III labs need no conversion.",
         )
 
     crop_key = "hemp" if "Hemp" in crop else "mj"
 
-    if "Modified Morgan" in lab:
+    if "Modified Morgan" in lab and "Cornell Soil Health" not in lab:
         st.info(
-            "ℹ️ **Dairy One / Agro-One (Modified Morgan) detected.**  \n"
-            "P will be multiplied ×2.2 and K ×1.2 to approximate Mehlich III equivalents.  \n"
-            "**Important:** Dairy One / Agro-One reports P, K, Ca, Mg, Mn, Zn, and Al in **lbs/acre** — "
-            "set all three unit selectors below to **lbs / acre**.  \n"
-            "Fe is reported without a unit label on the report (likely ppm — leave the micronutrient unit as ppm for Fe).  \n"
-            "S, Cu, and B are not typically reported by Dairy One / Agro-One."
+            "ℹ️ **Modified Morgan lab detected.**  \n"
+            "P will be multiplied ×**1.8** and K ×**1.0** to approximate Mehlich III equivalents "
+            "(Cornell NMSP Conversion Tool v7, Ketterings 2005).  \n"
+            "**Note:** P, K, Ca, Mg, Mn, Zn, and Al are typically reported in **lbs/acre** — "
+            "set the unit selectors below to **lbs / acre** for those nutrients.  \n"
+            "Fe is typically reported without a unit label (enter as ppm).  \n"
+            "S, Cu, and B are not typically reported by Modified Morgan labs."
         )
+    elif "Cornell Soil Health" in lab:
+        st.info(
+            "ℹ️ **Cornell Soil Health Lab detected.**  \n"
+            "Values are already Cornell Modified Morgan equivalents reported in **lbs/acre**. "
+            "Set unit selectors to **lbs / acre**. No M3 conversion is applied — "
+            "values are compared directly to Modified Morgan lbs/acre targets."
+        )
+    elif lab and "Mehlich" in lab:
+        st.info(
+            "ℹ️ **Mehlich III lab detected.** Values are already M3 equivalents — "
+            "enter in the units shown on your report (typically ppm for most nutrients)."
+        )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 3a — UPLOAD LAB REPORT (optional)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Column name → nutrient key mapping (case-insensitive)
+_UPLOAD_COL_MAP = {
+    "ph": "pH",
+    "organic matter": "Organic Matter", "om": "Organic Matter",
+    "om%": "Organic Matter", "om (%)": "Organic Matter", "% om": "Organic Matter",
+    "p": "P (Phosphorus)", "phosphorus": "P (Phosphorus)",
+    "p (phosphorus)": "P (Phosphorus)", "p_ppm": "P (Phosphorus)", "p_lbs": "P (Phosphorus)",
+    "k": "K (Potassium)", "potassium": "K (Potassium)",
+    "k (potassium)": "K (Potassium)", "k_ppm": "K (Potassium)",
+    "ca": "Ca (Calcium)", "calcium": "Ca (Calcium)", "ca (calcium)": "Ca (Calcium)",
+    "mg": "Mg (Magnesium)", "magnesium": "Mg (Magnesium)", "mg (magnesium)": "Mg (Magnesium)",
+    "s": "S (Sulfur)", "sulfur": "S (Sulfur)", "s (sulfur)": "S (Sulfur)",
+    "zn": "Zn (Zinc)", "zinc": "Zn (Zinc)", "zn (zinc)": "Zn (Zinc)", "zn_n": "Zn (Zinc)",
+    "mn": "Mn (Manganese)", "manganese": "Mn (Manganese)", "mn (manganese)": "Mn (Manganese)",
+    "fe": "Fe (Iron)", "iron": "Fe (Iron)", "fe (iron)": "Fe (Iron)",
+    "cu": "Cu (Copper)", "copper": "Cu (Copper)", "cu (copper)": "Cu (Copper)", "cu_n": "Cu (Copper)",
+    "b": "B (Boron)", "boron": "B (Boron)", "b (boron)": "B (Boron)",
+    "na": "Na (Sodium)", "sodium": "Na (Sodium)", "na (sodium)": "Na (Sodium)",
+    "al": "Al (Aluminum)", "aluminum": "Al (Aluminum)", "al (aluminum)": "Al (Aluminum)",
+    "aluminium": "Al (Aluminum)",
+    "cec": "CEC", "total exchange capacity": "CEC", "t.e.c.": "CEC",
+    "ca%": "Base Saturation Ca%", "ca sat": "Base Saturation Ca%",
+    "ca saturation": "Base Saturation Ca%", "% ca": "Base Saturation Ca%",
+    "k%": "Base Saturation K%", "k sat": "Base Saturation K%",
+    "k saturation": "Base Saturation K%", "% k": "Base Saturation K%",
+}
+
+_TEMPLATE_CSV = (
+    "Sample ID,pH,Organic Matter (%),P,K,Ca,Mg,S,Zn,Mn,Fe,Cu,B,Na,Al,CEC,Ca%,K%\n"
+    "# Units: enter ppm for Mehlich III labs; lbs/acre for Modified Morgan labs\n"
+    "Sample-1,,,,,,,,,,,,,,,,\n"
+)
+
+def _find_header_row(df_raw):
+    """Find the row index that looks like a nutrient header."""
+    nutrient_keywords = {"ph", "phosphorus", "potassium", "calcium", "magnesium", "p", "k", "ca", "mg"}
+    for i, row in df_raw.iterrows():
+        cells = {str(v).strip().lower() for v in row if v is not None and str(v).strip()}
+        if len(cells & nutrient_keywords) >= 2:
+            return i
+    return 0
+
+def _parse_lab_file(file_bytes, filename):
+    """Parse CSV or Excel lab report. Returns list of (sample_id, {nname: value}) dicts."""
+    import io
+    try:
+        if filename.lower().endswith(".csv"):
+            df_raw = pd.read_csv(io.BytesIO(file_bytes), header=None, comment="#")
+        else:
+            df_raw = pd.read_excel(io.BytesIO(file_bytes), header=None)
+    except Exception as e:
+        return None, str(e)
+
+    # Find header row
+    hdr_idx = _find_header_row(df_raw)
+    headers = [str(v).strip() for v in df_raw.iloc[hdr_idx]]
+
+    # Map headers to nutrient names
+    col_to_nutrient = {}
+    sample_col = None
+    for ci, h in enumerate(headers):
+        h_lo = h.lower()
+        if h_lo in ("sample", "sample id", "sample_id", "id", "name", "sample name"):
+            sample_col = ci
+        elif h_lo in _UPLOAD_COL_MAP:
+            col_to_nutrient[ci] = _UPLOAD_COL_MAP[h_lo]
+
+    if not col_to_nutrient:
+        return None, "No recognized nutrient columns found. Check column headers match: pH, P, K, Ca, Mg, etc."
+
+    results = []
+    for ri in range(hdr_idx + 1, len(df_raw)):
+        row = df_raw.iloc[ri]
+        sample_id = str(row.iloc[sample_col]).strip() if sample_col is not None else f"Row {ri}"
+        if sample_id in ("nan", "", "None"):
+            sample_id = f"Row {ri}"
+        vals = {}
+        for ci, nname in col_to_nutrient.items():
+            raw_val = row.iloc[ci]
+            try:
+                v = float(raw_val)
+                if pd.notna(v):
+                    vals[nname] = v
+            except (ValueError, TypeError):
+                pass
+        if vals:
+            results.append({"sample_id": sample_id, "values": vals})
+
+    if not results:
+        return None, "File parsed but no numeric data rows found."
+    return results, None
+
+
+with st.expander("📎 Step 2b — Upload Lab Report (CSV or Excel, optional)", expanded=False):
+    st.markdown(
+        "Upload your lab report to auto-fill the fields below. "
+        "Accepted formats: **CSV** or **Excel (.xlsx)**. "
+        "The file must have a header row with column names like: "
+        "`pH`, `P`, `K`, `Ca`, `Mg`, `S`, `Zn`, `Mn`, `Fe`, `Al`, `OM`, `CEC` etc. "
+        "Multiple samples are supported — pick the sample you want after upload."
+    )
+
+    up_col1, up_col2 = st.columns([3, 1])
+    with up_col1:
+        lab_file = st.file_uploader(
+            "Choose file", type=["csv", "xlsx"], key="lab_upload",
+            label_visibility="collapsed",
+        )
+    with up_col2:
+        st.download_button(
+            "⬇ Download CSV template",
+            data=_TEMPLATE_CSV.encode(),
+            file_name="soil_test_template.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    if lab_file is not None:
+        parsed, err = _parse_lab_file(lab_file.read(), lab_file.name)
+        if err:
+            st.error(f"Could not parse file: {err}")
+        else:
+            sample_ids = [r["sample_id"] for r in parsed]
+            if len(parsed) > 1:
+                chosen_id = st.selectbox("Select sample", sample_ids, key="upload_sample_sel")
+                chosen = next(r for r in parsed if r["sample_id"] == chosen_id)
+            else:
+                chosen = parsed[0]
+                st.success(f"Parsed: **{chosen['sample_id']}** — {len(chosen['values'])} nutrient columns detected.")
+
+            # Preview table
+            preview_rows = [{"Nutrient": k, "Value from file": v} for k, v in chosen["values"].items()]
+            st.dataframe(pd.DataFrame(preview_rows), hide_index=True, use_container_width=True)
+
+            if st.button("✅ Apply to input fields below", type="primary", use_container_width=True):
+                for nname, val in chosen["values"].items():
+                    st.session_state[f"nutrient_{nname}"] = val
+                st.success("Fields populated — scroll down to review and adjust if needed.")
+                st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 3 — SOIL TEST INPUT
@@ -244,8 +401,8 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
     help_texts = {
         "pH":                  "Dimensionless. Look for 'pH' or 'Soil pH' on your report.",
         "Organic Matter":      "Always enter as %. Look for '%OM' or 'Organic Matter %'.",
-        "P (Phosphorus)":      "Dairy One/Agro-One: enter the lbs/acre value (e.g. 9) and set unit to lbs/acre above. MM value auto-converted ×2.2 to Mehlich III.",
-        "K (Potassium)":       "Dairy One/Agro-One: enter the lbs/acre value and set unit to lbs/acre above. MM value auto-converted ×1.2 to Mehlich III.",
+        "P (Phosphorus)":      "For Modified Morgan labs (Agro-One MM, UVM/UConn/UMass): enter lbs/acre value; auto-converted ×1.8 to Mehlich III equivalents (Cornell NMSP v7). Dairy One / Agro-One Mehlich III: no conversion applied.",
+        "K (Potassium)":       "For Modified Morgan labs: enter lbs/acre value; auto-converted ×1.0 to Mehlich III equivalents. Dairy One / Agro-One Mehlich III: no conversion applied.",
         "Ca (Calcium)":        "Dairy One/Agro-One: enter the lbs/acre value and set unit to lbs/acre. This is NOT the same as Base Saturation Ca%.",
         "Mg (Magnesium)":      "Dairy One/Agro-One: enter the lbs/acre value and set unit to lbs/acre.",
         "S (Sulfur)":          "Dairy One/Agro-One: S is not typically reported. Leave blank if not on your report.",
