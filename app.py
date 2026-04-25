@@ -133,64 +133,25 @@ with col2:
         st.switch_page("pages/2_Economics.py")
 
 st.write("")
-col3, col4, col5 = st.columns(3, gap="large")
+col3, col_spacer = st.columns([2, 1], gap="large")
 
 with col3:
     st.markdown("""
 <div class="tool-card">
-  <h3>🌱 Pre-Harvest Data <span class="badge badge-live">LIVE</span></h3>
-  <p>Record batch identity, growing environment, inputs, pest control, and sales data throughout
-  the growing cycle.</p>
+  <h3>🌿 Crop Overview <span class="badge badge-live">LIVE</span></h3>
+  <p>Integrated pre-harvest, post-harvest, and batch dashboard — all in one place, linked by Batch ID.</p>
   <ul>
-    <li>Upload existing PreHarvest Excel template</li>
-    <li>Manual entry across 7 data sections</li>
-    <li>Nutrient &amp; pest control event logs</li>
-    <li>Cannabinoid &amp; terpene results</li>
-    <li>Download as CSV or Excel</li>
+    <li>Pre-harvest: batch identity, growing env., inputs, pest &amp; nutrient logs, yield/selling</li>
+    <li>Post-harvest: processing weights, curing log, COA testing, packaging, byproduct sales</li>
+    <li>Batch dashboard: completeness indicators, weight flow funnel, revenue breakdown</li>
+    <li>Upload existing PreHarvest or PostHarvest Excel templates</li>
+    <li>Download everything as CSV or Excel</li>
   </ul>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
-    if st.button("→ Open Pre-Harvest Tool", use_container_width=True, type="primary"):
-        st.switch_page("pages/3_Pre_Harvest.py")
-
-with col4:
-    st.markdown("""
-<div class="tool-card">
-  <h3>🌾 Post-Harvest Data <span class="badge badge-live">LIVE</span></h3>
-  <p>Track processing weights, curing, COA lab testing, packaging inventory, and byproduct sales
-  from cut to sale.</p>
-  <ul>
-    <li>Upload existing PostHarvest Excel template</li>
-    <li>Weight flow: wet → bucked → dried → trimmed</li>
-    <li>Curing monitoring log</li>
-    <li>COA pass/fail tracking</li>
-    <li>Download as CSV or Excel</li>
-  </ul>
-</div>
-""", unsafe_allow_html=True)
-    st.write("")
-    if st.button("→ Open Post-Harvest Tool", use_container_width=True, type="primary"):
-        st.switch_page("pages/4_Post_Harvest.py")
-
-with col5:
-    st.markdown("""
-<div class="tool-card">
-  <h3>📊 Batch Overview <span class="badge badge-live">LIVE</span></h3>
-  <p>Linked dashboard that combines pre- and post-harvest records by Batch ID for a complete
-  per-batch picture.</p>
-  <ul>
-    <li>Data completeness indicators</li>
-    <li>Weight flow funnel chart</li>
-    <li>Revenue breakdown by product stream</li>
-    <li>Cannabinoid &amp; terpene summary</li>
-    <li>Download combined batch report</li>
-  </ul>
-</div>
-""", unsafe_allow_html=True)
-    st.write("")
-    if st.button("→ Open Batch Overview", use_container_width=True, type="primary"):
-        st.switch_page("pages/5_Batch_Overview.py")
+    if st.button("→ Open Crop Overview", use_container_width=True, type="primary"):
+        st.switch_page("pages/3_Crop_Overview.py")
 
 st.write("")
 col6, col7 = st.columns(2, gap="large")

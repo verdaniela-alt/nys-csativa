@@ -477,6 +477,9 @@ if st.session_state.assessment_done:
                 for a in AMENDMENTS:
                     cond_lower = a["condition"].lower()
                     if short in cond_lower or nname.lower() in cond_lower:
+                        # Skip amendments designed for high/excess values (e.g. "pH > 7.0")
+                        if ">" in a["condition"]:
+                            continue
                         key = a["amendment"]
                         if key in shown:
                             continue
