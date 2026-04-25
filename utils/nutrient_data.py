@@ -47,7 +47,7 @@ NUTRIENTS = [
          # cannabis upper range extended slightly as a heavier feeder
          mm_hemp_min=5,  mm_hemp_max=20,  mm_mj_min=6,  mm_mj_max=25,
          note="Mehlich III (ppm) or Agro-One Modified Morgan (lbs/acre) — see lab selection",
-         mm_factor=2.2, allow_unit_conversion=True),
+         mm_factor=1.8, allow_unit_conversion=True),
 
     dict(name="K (Potassium)",
          unit="ppm",
@@ -56,7 +56,7 @@ NUTRIENTS = [
          # cannabis upper range extended as a K-demanding crop
          mm_hemp_min=100, mm_hemp_max=300, mm_mj_min=100, mm_mj_max=350,
          note="Mehlich III (ppm) or Agro-One Modified Morgan (lbs/acre) — see lab selection",
-         mm_factor=1.2, allow_unit_conversion=True),
+         mm_factor=1.0, allow_unit_conversion=True),
 
     dict(name="Ca (Calcium)",
          unit="ppm",
