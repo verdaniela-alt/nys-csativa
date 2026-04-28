@@ -194,6 +194,62 @@ LAB_FACTORS = {
     },
 }
 
+# ── Cornell Lime Rate Lookup Table ──────────────────────────────────────────
+# Source: Cornell NMSP Lime Guidelines Calculator v2.0 (March 2014),
+# "Data" sheet. Rates in tons/acre at 100% Effective Neutralizing Value (ENV).
+# Columns = target minimum pH the field needs to reach.
+# For cannabis/hemp: target minimum pH 6.4 is used (optimal range 6.2–6.8).
+#
+# Usage:
+#   1. Round buffer pH to nearest 0.1, clamp to [5.0, 6.5].
+#   2. Look up rate for target min pH column.
+#   3. Multiply by tillage depth factor (LIME_TILLAGE_FACTORS).
+#   4. Divide by (lime product %ENV / 100) for actual application rate.
+#
+# buffer_pH → {target_min_pH: tons/acre at 100% ENV}
+LIME_RATE_TABLE = {
+    5.0: {6.7: 11.0, 6.6: 10.0, 6.4: 8.5, 6.0: 6.5},
+    5.1: {6.7: 10.0, 6.6:  9.0, 6.4: 7.5, 6.0: 6.0},
+    5.2: {6.7:  9.0, 6.6:  8.0, 6.4: 7.0, 6.0: 5.5},
+    5.3: {6.7:  8.0, 6.6:  7.5, 6.4: 6.0, 6.0: 5.0},
+    5.4: {6.7:  7.5, 6.6:  6.5, 6.4: 5.5, 6.0: 4.0},
+    5.5: {6.7:  6.5, 6.6:  6.0, 6.4: 4.5, 6.0: 3.5},
+    5.6: {6.7:  5.5, 6.6:  5.0, 6.4: 4.0, 6.0: 3.0},
+    5.7: {6.7:  4.5, 6.6:  4.0, 6.4: 3.0, 6.0: 2.5},
+    5.8: {6.7:  4.0, 6.6:  3.5, 6.4: 2.5, 6.0: 1.5},
+    5.9: {6.7:  3.0, 6.6:  2.5, 6.4: 2.0, 6.0: 1.0},
+    6.0: {6.7:  2.0, 6.6:  1.5, 6.4: 1.0, 6.0: 0.5},
+    6.1: {6.7:  1.0, 6.6:  1.0, 6.4: 0.5, 6.0: 0.5},
+    6.2: {6.7:  1.0, 6.6:  0.5, 6.4: 0.5, 6.0: 0.5},
+    6.3: {6.7:  1.0, 6.6:  0.5, 6.4: 0.5, 6.0: 0.5},
+    6.4: {6.7:  1.0, 6.6:  0.5, 6.4: 0.5, 6.0: 0.5},
+    6.5: {6.7:  1.0, 6.6:  0.5, 6.4: 0.5, 6.0: 0.5},
+}
+
+# Tillage depth multipliers (Cornell NMSP Lime Calculator v2.0, Data sheet)
+LIME_TILLAGE_FACTORS = {
+    "1–6 inches (no-till / shallow)": 1.0,
+    "7–9 inches (standard plow)":     1.33,
+    "9+ inches (deep tillage)":        1.67,
+}
+
+
+def lime_rate_lookup(buffer_ph: float, tillage_key: str,
+                     target_min_ph: float = 6.4) -> float:
+    """
+    Return recommended lime rate in tons/acre at 100% ENV.
+    buffer_ph    — Modified Mehlich buffer pH from soil test (typically 5.0–7.0)
+    tillage_key  — key from LIME_TILLAGE_FACTORS
+    target_min_ph — target minimum pH column (6.7 / 6.6 / 6.4 / 6.0); default 6.4 for cannabis
+    Returns 0.0 if no lime needed (buffer_ph >= 6.5 or soil already above target).
+    """
+    # Round to nearest 0.1, clamp to table range
+    bph = round(max(5.0, min(6.5, buffer_ph)), 1)
+    base_rate = LIME_RATE_TABLE.get(bph, {}).get(target_min_ph, 0.0)
+    factor = LIME_TILLAGE_FACTORS.get(tillage_key, 1.0)
+    return round(base_rate * factor, 2)
+
+
 # ── Amendment recommendations ────────────────────────────────────────────────
 # Fields:
 #   condition   — what triggers this recommendation

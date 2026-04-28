@@ -10,7 +10,8 @@ import streamlit as st
 import pandas as pd
 
 from utils.nutrient_data import (
-    NUTRIENTS, AMENDMENTS, QUICK_AMEND, LAB_FACTORS, UNIT_CONVERSIONS
+    NUTRIENTS, AMENDMENTS, QUICK_AMEND, LAB_FACTORS, UNIT_CONVERSIONS,
+    LIME_RATE_TABLE, LIME_TILLAGE_FACTORS, lime_rate_lookup,
 )
 from utils.soil_api import get_soil_data
 from utils.sidebar import render_sidebar
@@ -398,6 +399,35 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
         "Al (Aluminum)":     unit_salts,
     }
 
+    # ── Lime rate inputs (buffer pH + tillage) ───────────────────────────
+    st.divider()
+    st.markdown("**🪨 Lime Rate Inputs** *(optional — required for lime rate calculation)*")
+    lime_col1, lime_col2 = st.columns(2)
+    with lime_col1:
+        buffer_ph_val = st.number_input(
+            "Modified Mehlich Buffer pH",
+            min_value=4.0, max_value=7.5, value=None,
+            step=0.1, format="%.1f",
+            key="buffer_ph",
+            placeholder="e.g. 6.2",
+            help=(
+                "Reported on most Cornell Soil Health Lab and Agro-One reports as "
+                "'Buffer pH' or 'Mehlich Buffer pH'. This is NOT the same as soil pH. "
+                "If your report does not include a buffer pH, leave blank."
+            ),
+        )
+    with lime_col2:
+        tillage_key = st.selectbox(
+            "Tillage depth",
+            list(LIME_TILLAGE_FACTORS.keys()),
+            key="tillage_depth",
+            help=(
+                "Affects how deep the lime needs to be incorporated. "
+                "Deeper tillage requires more lime per acre. "
+                "Source: Cornell NMSP Lime Calculator v2.0 (2014)."
+            ),
+        )
+
     st.divider()
 
     # ── Per-nutrient help text ────────────────────────────────────────────
@@ -677,6 +707,65 @@ if st.session_state.assessment_done:
 <b>Notes:</b> {a['notes']}<br><br>
 {price_str}
 </div>""", unsafe_allow_html=True)
+
+        # ── Lime rate calculator (shown when pH is deficient) ─────────────
+        if "pH" in deficient_nutrients:
+            st.divider()
+            st.markdown("### 🪨 Lime Rate Estimate")
+            _bph = st.session_state.get("buffer_ph", None)
+            _till = st.session_state.get("tillage_depth", list(LIME_TILLAGE_FACTORS.keys())[0])
+            _soil_ph = user_values.get("pH", None)
+
+            if _bph is None or _bph == 0.0:
+                st.info(
+                    "Enter a **Modified Mehlich Buffer pH** in the Lime Rate Inputs section above "
+                    "to get a site-specific lime rate recommendation."
+                )
+            else:
+                _rate_100 = lime_rate_lookup(_bph, _till, target_min_ph=6.4)
+                _rate_80  = round(_rate_100 / 0.80, 2)   # typical ag lime ~80% ENV
+                _rate_90  = round(_rate_100 / 0.90, 2)   # high-quality lime ~90% ENV
+
+                st.markdown(f"""
+<div style="background:#e8f5e9; border-left:5px solid #2e7d32; border-radius:8px;
+            padding:18px 22px; margin-bottom:12px;">
+<h4 style="margin:0 0 10px 0; color:#1b5e20;">🌿 Lime Rate — Cannabis / Hemp (target pH ≥ 6.4)</h4>
+<p style="margin:4px 0"><b>Buffer pH entered:</b> {_bph:.1f} &nbsp;|&nbsp;
+   <b>Tillage depth:</b> {_till} &nbsp;|&nbsp;
+   <b>Tillage factor:</b> ×{LIME_TILLAGE_FACTORS[_till]}</p>
+<hr style="border:none; border-top:1px solid #a5d6a7; margin:10px 0">
+<table style="width:100%; border-collapse:collapse; font-size:0.95rem;">
+<tr><th style="text-align:left; padding:4px 8px; background:#c8e6c9">Lime product quality</th>
+    <th style="text-align:center; padding:4px 8px; background:#c8e6c9">%ENV</th>
+    <th style="text-align:center; padding:4px 8px; background:#c8e6c9">Rate (tons/acre)</th></tr>
+<tr><td style="padding:4px 8px">Reference rate (100% ENV)</td>
+    <td style="text-align:center; padding:4px 8px">100%</td>
+    <td style="text-align:center; padding:4px 8px"><b>{_rate_100:.2f}</b></td></tr>
+<tr style="background:#f1f8e9"><td style="padding:4px 8px">High-quality ag lime (typical)</td>
+    <td style="text-align:center; padding:4px 8px">90%</td>
+    <td style="text-align:center; padding:4px 8px"><b>{_rate_90:.2f}</b></td></tr>
+<tr><td style="padding:4px 8px">Standard ag lime (typical)</td>
+    <td style="text-align:center; padding:4px 8px">80%</td>
+    <td style="text-align:center; padding:4px 8px"><b>{_rate_80:.2f}</b></td></tr>
+</table>
+<p style="margin:10px 0 4px 0; font-size:0.85rem; color:#2e7d32">
+<b>Note:</b> Actual application rate = table rate ÷ (%ENV / 100). Check the bag or supplier sheet
+for your lime product's %ENV (Effective Neutralizing Value). Apply at least <b>3–6 months before
+planting</b> and incorporate thoroughly. For large applications (&gt;3 tons/acre), split into two
+applications one season apart. <br>
+<b>Source:</b> Cornell NMSP Lime Guidelines Calculator v2.0 (March 2014) — target minimum pH 6.4,
+using Modified Mehlich buffer pH method.
+</p>
+</div>""", unsafe_allow_html=True)
+
+                # Acres input for total lime needed
+                _acres_lime = st.session_state.get("soil_amendment_acres", 1.0)
+                st.caption(
+                    f"At {_acres_lime:.1f} acres: "
+                    f"**{round(_rate_90 * _acres_lime, 1)} tons** (90% ENV) or "
+                    f"**{round(_rate_80 * _acres_lime, 1)} tons** (80% ENV) total. "
+                    f"Adjust acreage in the Amendment Budget section below."
+                )
 
         if excess_nutrients:
             st.markdown(f"### ▲ Addressing Excess Levels: {', '.join(excess_nutrients)}")
