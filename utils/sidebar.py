@@ -4,10 +4,20 @@ Call render_sidebar() near the top of every page, after set_page_config().
 """
 import streamlit as st
 
-# Hides the auto-generated Streamlit page list so our custom nav is the only one shown
+# Hides the auto-generated Streamlit page list so our custom nav is the only one shown.
+# Multiple selectors cover different Streamlit versions (1.32 – 1.44+).
 _HIDE_AUTO_NAV_CSS = """
 <style>
-section[data-testid="stSidebarNav"] { display: none !important; }
+/* Streamlit <= 1.35 */
+section[data-testid="stSidebarNav"]          { display: none !important; }
+/* Streamlit 1.36 – 1.40 */
+div[data-testid="stSidebarNavContainer"]     { display: none !important; }
+[data-testid="stSidebarNav"]                 { display: none !important; }
+/* Streamlit 1.41+ */
+ul[data-testid="stSidebarNavItems"]          { display: none !important; }
+nav[data-testid="stSidebarNav"]              { display: none !important; }
+/* Catch-all: hide the entire collapsible nav block at the top of the sidebar */
+[data-testid="stSidebarNavSeparator"]        { display: none !important; }
 </style>
 """
 
