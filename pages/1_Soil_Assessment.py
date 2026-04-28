@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 
 from utils.nutrient_data import (
     NUTRIENTS, AMENDMENTS, QUICK_AMEND, LAB_FACTORS, UNIT_CONVERSIONS,
@@ -114,8 +115,38 @@ with st.expander("📍 Step 1: Site Location & Soil Survey Lookup", expanded=Tru
             except Exception as e:
                 st.error(f"❌ Lookup error: {e}")
 
-    if st.session_state.soil_data:
-        soil    = st.session_state.soil_data
+    # ── NY State map (always shown; pin appears after lookup) ─────────────────
+    _soil_now = st.session_state.soil_data
+    _pin_lat  = [_soil_now["lat"]]  if _soil_now else []
+    _pin_lon  = [_soil_now["lon"]]  if _soil_now else []
+    _pin_text = [_soil_now.get("matched_address", "Farm location")] if _soil_now else []
+
+    _fig_map = go.Figure(go.Scattermapbox(
+        lat=_pin_lat,
+        lon=_pin_lon,
+        mode="markers+text",
+        marker=go.scattermapbox.Marker(size=18, color="#e53935"),
+        text=_pin_text,
+        textposition="top right",
+        textfont=dict(size=12, color="#e53935"),
+        hoverinfo="text",
+    ))
+    _fig_map.update_layout(
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(lat=42.9, lon=-75.7),
+            zoom=6,
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=420,
+    )
+    st.markdown("**📍 New York State — Field Location**")
+    st.caption("Enter your address above and click Look Up to place a pin on the map.")
+    st.plotly_chart(_fig_map, use_container_width=True, key="ny_state_map")
+
+    # ── NRCS Soil Survey Results (shown after lookup) ──────────────────────────
+    if _soil_now:
+        soil    = _soil_now
         comp    = soil.get("comp")
         horizon = soil.get("horizon")
 
@@ -151,28 +182,6 @@ with st.expander("📍 Step 1: Site Location & Soil Survey Lookup", expanded=Tru
                     st.warning("No horizon data returned.")
         else:
             st.warning("⚠️ No NRCS data found. You can still enter data manually below.")
-
-        # Map — NY State overview with pin at geocoded address
-        import plotly.graph_objects as go
-        _fig_map = go.Figure(go.Scattermapbox(
-            lat=[soil["lat"]],
-            lon=[soil["lon"]],
-            mode="markers",
-            marker=go.scattermapbox.Marker(size=16, color="#e53935"),
-            text=[soil.get("matched_address", "Farm location")],
-            hoverinfo="text",
-        ))
-        _fig_map.update_layout(
-            mapbox=dict(
-                style="open-street-map",
-                center=dict(lat=42.9, lon=-75.7),
-                zoom=6,
-            ),
-            margin=dict(l=0, r=0, t=0, b=0),
-            height=420,
-        )
-        st.markdown("**📍 Field Location — New York State**")
-        st.plotly_chart(_fig_map, use_container_width=True)
 
     st.caption("Data from USDA NRCS SSURGO. For an interactive map visit "
                "[SoilWeb](https://casoilresource.lawr.ucdavis.edu/gmap/).")
