@@ -82,7 +82,7 @@ def build_preharvest_excel(batches_dict):
         "Disease Presence","Disease Name","Disease Severity","Disease Date First Seen",
         "% White Trichomes","% Clear Trichomes","% Amber Trichomes",
         "A Buds (%)","B Buds (%)","C Buds / Popcorn (%)",
-        "Flower Weight (kg)","Trim Weight (kg)","Waste Weight (kg)","Biomass Weight (kg)",
+        "Biomass Weight (kg)",
         "THC (%)","CBD (%)","Other Cannabinoids",
         "B-Myrcene (%)","B-Caryophyllene (%)","Limonene (%)","A-Humulene (%)","B-Pinene (%)","Linalool (%)",
     ])
@@ -102,8 +102,7 @@ def build_preharvest_excel(batches_dict):
             d.get("pct_white_trichomes") or "", d.get("pct_clear_trichomes") or "",
             d.get("pct_amber_trichomes") or "",
             d.get("a_buds_pct") or "", d.get("b_buds_pct") or "", d.get("c_buds_pct") or "",
-            d.get("flower_weight_kg") or "", d.get("trim_weight_kg") or "",
-            d.get("waste_weight_kg") or "", d.get("biomass_weight_kg") or "",
+            d.get("biomass_weight_kg") or "",
             d.get("thc_pct") or "", d.get("cbd_pct") or "",
             d.get("other_cannabinoids",""),
             d.get("b_myrcene_pct") or "", d.get("b_caryophyllene_pct") or "",
@@ -690,8 +689,10 @@ with outer_tabs[0]:
             ph_bd["pct_amber_trichomes"] = st.number_input("% Amber", 0.0, 100.0, step=1.0,
                 value=float(ph_bd.get("pct_amber_trichomes") or 0.0), key=f"ph_{selected_batch}_am_tri")
         with hq4:
-            ph_bd["biomass_weight_kg"] = st.number_input("Total Biomass Weight (kg)", 0.0, step=0.1,
-                value=float(ph_bd.get("biomass_weight_kg") or 0.0), key=f"ph_{selected_batch}_biomass")
+            ph_bd["biomass_weight_kg"] = st.number_input("Total Biomass Weight — kg (pre-processing estimate)", 0.0, step=0.1,
+                value=float(ph_bd.get("biomass_weight_kg") or 0.0), key=f"ph_{selected_batch}_biomass",
+                help="Rough estimate of total fresh plant mass before any processing. "
+                     "Detailed step-by-step weights (wet, bucked, dried, trimmed) are tracked in Post-Harvest → Processing Weights.")
         st.divider()
         st.markdown("#### Bud Grade Distribution")
         st.caption("A = top-shelf flower, B = mid-grade, C = popcorn / larf. Values should sum to 100%.")
@@ -711,19 +712,6 @@ with outer_tabs[0]:
                 st.warning(f"⚠️ Bud grade sum = {_bud_sum:.0f}% — adjust to 100%")
             else:
                 st.success("✅ Bud grades sum to 100%")
-        st.divider()
-        st.markdown("#### Harvest Weights by Product Type")
-        st.caption("Weight at harvest in kg. Used for batch-level yield tracking (source: Data Collection Master Template).")
-        hw1, hw2, hw3 = st.columns(3)
-        with hw1:
-            ph_bd["flower_weight_kg"] = st.number_input("Flower Weight (kg)", 0.0, step=0.01,
-                value=float(ph_bd.get("flower_weight_kg") or 0.0), key=f"ph_{selected_batch}_fl_kg", format="%.3f")
-        with hw2:
-            ph_bd["trim_weight_kg"] = st.number_input("Trim Weight (kg)", 0.0, step=0.01,
-                value=float(ph_bd.get("trim_weight_kg") or 0.0), key=f"ph_{selected_batch}_tr_kg", format="%.3f")
-        with hw3:
-            ph_bd["waste_weight_kg"] = st.number_input("Waste Weight (kg)", 0.0, step=0.01,
-                value=float(ph_bd.get("waste_weight_kg") or 0.0), key=f"ph_{selected_batch}_wst_kg", format="%.3f")
         st.divider()
         st.markdown("#### Lab Results — Cannabinoids & Terpenes")
         st.caption("Enter values from COA. Full COA attachment goes in Post-Harvest → Quality Testing tab.")
@@ -1065,8 +1053,15 @@ with outer_tabs[1]:
             pos_bd["harvest_date"] = st.text_input("Harvest Date (mm/dd/yyyy)",
                 value=pos_bd.get("harvest_date",""), key=f"pos_{selected_batch}_hdate")
         with c2:
+            # Auto-derive initial plant count from Pre-Harvest to avoid double entry
+            _ph_total_plants = sum(int(ph_bd.get(k) or 0)
+                for k in ["n_plants_outdoor","n_plants_hoop","n_plants_greenhouse","n_plants_indoor"])
+            if _ph_total_plants > 0:
+                st.caption(f"🌱 Pre-Harvest total plants: **{_ph_total_plants}** — used as default below")
+            _init_default = int(pos_bd.get("initial_plant_count") or _ph_total_plants or 0)
             pos_bd["initial_plant_count"] = st.number_input("Initial Plant Count", min_value=0, step=1,
-                value=int(pos_bd.get("initial_plant_count") or 0), key=f"pos_{selected_batch}_init_cnt")
+                value=_init_default, key=f"pos_{selected_batch}_init_cnt",
+                help="Auto-filled from Pre-Harvest plant count total. Override if different.")
             pos_bd["harvested_plant_count"] = st.number_input("Harvested Plant Count", min_value=0, step=1,
                 value=int(pos_bd.get("harvested_plant_count") or 0), key=f"pos_{selected_batch}_harv_cnt")
         initial = int(pos_bd.get("initial_plant_count") or 0)
@@ -1222,6 +1217,7 @@ with outer_tabs[1]:
     # ── TAB 2.4: Quality Testing ───────────────────────────────────────────
     with pos_tabs[3]:
         st.markdown("#### Quality Testing — Certificate of Analysis (COA)")
+        st.info("THC%, CBD%, and terpene % values are entered in **Pre-Harvest → Lab Results** to keep all cannabinoid data in one place. This tab records lab submission logistics, pass/fail result, and COA link only.")
         st.markdown("**Lab Submission**")
         qt1, qt2 = st.columns(2)
         with qt1:
