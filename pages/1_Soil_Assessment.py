@@ -13,6 +13,7 @@ from utils.nutrient_data import (
     NUTRIENTS, AMENDMENTS, QUICK_AMEND, LAB_FACTORS, UNIT_CONVERSIONS
 )
 from utils.soil_api import get_soil_data
+from utils.sidebar import render_sidebar
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -20,6 +21,8 @@ st.set_page_config(
     page_icon="🌱",
     layout="wide",
 )
+
+render_sidebar()
 
 # ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -596,8 +599,25 @@ if st.session_state.assessment_done:
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
     csv = df.to_csv(index=False)
-    st.download_button("⬇ Download Results (CSV)", data=csv,
-                       file_name="soil_gap_analysis.csv", mime="text/csv")
+    dl_c1, dl_c2 = st.columns(2)
+    with dl_c1:
+        st.download_button("⬇ Download Results (CSV)", data=csv,
+                           file_name="soil_gap_analysis.csv", mime="text/csv",
+                           use_container_width=True)
+    with dl_c2:
+        try:
+            import openpyxl  # noqa: F401
+            from io import BytesIO
+            _xbuf = BytesIO()
+            df.to_excel(_xbuf, index=False, sheet_name="Gap Analysis")
+            st.download_button(
+                "⬇ Download Results (Excel)", data=_xbuf.getvalue(),
+                file_name="soil_gap_analysis.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+        except ImportError:
+            st.caption("Install openpyxl for Excel download.")
 
     # ── Possible Amendments ────────────────────────────────────────────────
     st.divider()

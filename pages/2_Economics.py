@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import streamlit as st
 import pandas as pd
+from io import BytesIO
 
 try:
     import plotly.graph_objects as go
@@ -17,11 +18,21 @@ try:
 except ImportError:
     HAS_PLOTLY = False
 
+try:
+    import openpyxl  # noqa: F401
+    HAS_OPENPYXL = True
+except ImportError:
+    HAS_OPENPYXL = False
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from utils.sidebar import render_sidebar
+
 st.set_page_config(
     page_title="Economics | NYS Cannabis Tool",
     page_icon="💰",
     layout="wide",
 )
+render_sidebar()
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -456,10 +467,7 @@ def render_summary(results):
         })
     st.dataframe(pd.DataFrame(kpi_rows), use_container_width=True, hide_index=True)
 
-    # Download
-    csv_data = pd.DataFrame(kpi_rows).to_csv(index=False)
-    st.download_button("⬇ Download Summary (CSV)", data=csv_data,
-                       file_name="cannabis_economics_summary.csv", mime="text/csv")
+    summary_df = pd.DataFrame(kpi_rows)
     st.divider()
 
     # ── Revenue vs Costs bar chart ────────────────────────────────────────
@@ -536,6 +544,7 @@ def render_summary(results):
 
     # ── §280E / Tax Analysis (MJ only) ───────────────────────────────────
     mj_results = [r for r in results if r["is_mj"]]
+    tax_rows   = []
     if mj_results:
         st.divider()
         st.markdown("### 🏛️ Federal §280E & NYS Tax Analysis — Cannabis (MJ) Scenarios")
@@ -612,6 +621,33 @@ def render_summary(results):
                               legend=dict(orientation="h", y=-0.2))
         st.plotly_chart(fig_rev, use_container_width=True)
 
+    # ── Downloads ─────────────────────────────────────────────────────────
+    st.divider()
+    st.markdown("### ⬇ Download Results")
+    _csv = summary_df.to_csv(index=False)
+    _dc1, _dc2 = st.columns(2)
+    with _dc1:
+        st.download_button("⬇ Summary (CSV)", data=_csv,
+                           file_name="cannabis_economics_summary.csv",
+                           mime="text/csv", use_container_width=True)
+    with _dc2:
+        if HAS_OPENPYXL:
+            _ebuf = BytesIO()
+            _tax_rows_local = tax_rows if mj_results else []
+            with pd.ExcelWriter(_ebuf, engine="openpyxl") as _ew:
+                summary_df.to_excel(_ew, index=False, sheet_name="Summary")
+                pd.DataFrame(be_rows).to_excel(_ew, index=False, sheet_name="Break-Even")
+                if _tax_rows_local:
+                    pd.DataFrame(_tax_rows_local).to_excel(_ew, index=False, sheet_name="Tax Analysis (MJ)")
+            st.download_button(
+                "⬇ Summary (Excel, 2–3 sheets)", data=_ebuf.getvalue(),
+                file_name="cannabis_economics_summary.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+        else:
+            st.caption("Install openpyxl for Excel export.")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PAGE LAYOUT
@@ -660,6 +696,94 @@ with ctrl_col3:
         st.session_state.econ_n_scenarios -= 1
         st.session_state.econ_results = None
         st.rerun()
+
+# ── Upload section ────────────────────────────────────────────────────────────
+_ECON_TEMPLATE_COLS = [
+    "scenario_name","crop_type","op_type","plant_type",
+    "area_sqft","cycles","acres","n_plants","yield_pp","moisture","wage",
+    "labor_setup","labor_planting","labor_maintenance","labor_harvest",
+    "labor_post","labor_compliance","labor_other",
+    "vc_seeds","vc_amendments","vc_crop_prot","vc_water",
+    "vc_energy","vc_packaging","vc_testing","vc_other",
+    "fc_land","fc_buildings","fc_equipment","fc_licenses","fc_insurance","fc_other",
+    "fl_pct","pr_pct","ex_pct","fl_price","pr_price","ex_price",
+]
+_ECON_DEFAULTS = {
+    "crop_type": "Cannabis (MJ)", "op_type": "Outdoor", "plant_type": "Photoperiod",
+    "area_sqft": 0.0, "cycles": 1, "acres": 0.0, "n_plants": 0.0,
+    "yield_pp": 0.0, "moisture": 82.0, "wage": 20.0,
+    "fl_pct": 60.0, "pr_pct": 25.0, "ex_pct": 15.0,
+    "fl_price": 400.0, "pr_price": 325.0, "ex_price": 125.0,
+}
+
+with st.expander("📂 Upload Scenario Data (CSV or Excel)", expanded=False):
+    st.caption(
+        "Upload a CSV or Excel file with one scenario per row to pre-populate input fields. "
+        "Up to 5 scenarios will be loaded. Download the template below to see the expected format."
+    )
+    _tmpl_df = pd.DataFrame(columns=_ECON_TEMPLATE_COLS)
+    _tmpl_csv = _tmpl_df.to_csv(index=False)
+    uc1, uc2 = st.columns(2)
+    with uc1:
+        st.download_button("⬇ Download CSV Template", data=_tmpl_csv,
+                           file_name="economics_template.csv", mime="text/csv",
+                           use_container_width=True)
+    with uc2:
+        if HAS_OPENPYXL:
+            _tbuf = BytesIO()
+            _tmpl_df.to_excel(_tbuf, index=False, sheet_name="Scenarios")
+            st.download_button("⬇ Download Excel Template", data=_tbuf.getvalue(),
+                               file_name="economics_template.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               use_container_width=True)
+
+    econ_upload = st.file_uploader("Upload scenario file", type=["csv", "xlsx"],
+                                   label_visibility="collapsed")
+    if econ_upload is not None:
+        try:
+            fname = econ_upload.name.lower()
+            raw_bytes = econ_upload.read()
+            if fname.endswith(".xlsx"):
+                _udf = pd.read_excel(BytesIO(raw_bytes), dtype=str)
+            else:
+                _udf = pd.read_csv(BytesIO(raw_bytes), dtype=str)
+            _udf.columns = [c.strip().lower().replace(" ", "_") for c in _udf.columns]
+            _udf = _udf.dropna(how="all")
+            n_load = min(len(_udf), 5)
+            if n_load == 0:
+                st.warning("No data rows found in uploaded file.")
+            else:
+                if st.button(f"▶ Apply {n_load} scenario(s) from file", type="primary"):
+                    st.session_state.econ_n_scenarios = n_load
+                    for _i, (_idx, _row) in enumerate(list(_udf.iterrows())[:n_load]):
+                        _p = f"e{_i}_"
+                        def _sv(col, cast=float):
+                            val = _row.get(col, "")
+                            if pd.isna(val) or str(val).strip() == "":
+                                return _ECON_DEFAULTS.get(col, 0.0)
+                            try:
+                                return cast(str(val).strip())
+                            except Exception:
+                                return _ECON_DEFAULTS.get(col, 0.0)
+                        st.session_state[f"{_p}name"]       = str(_row.get("scenario_name", f"Scenario {_i+1}")).strip() or f"Scenario {_i+1}"
+                        st.session_state[f"{_p}crop_type"]  = str(_row.get("crop_type", "Cannabis (MJ)")).strip() or "Cannabis (MJ)"
+                        st.session_state[f"{_p}op_type"]    = str(_row.get("op_type", "Outdoor")).strip() or "Outdoor"
+                        st.session_state[f"{_p}plant_type"] = str(_row.get("plant_type", "Photoperiod")).strip() or "Photoperiod"
+                        for _col in ["area_sqft","acres","n_plants","yield_pp","moisture","wage",
+                                     "labor_setup","labor_planting","labor_maintenance","labor_harvest",
+                                     "labor_post","labor_compliance","labor_other",
+                                     "vc_seeds","vc_amendments","vc_crop_prot","vc_water",
+                                     "vc_energy","vc_packaging","vc_testing","vc_other",
+                                     "fc_land","fc_buildings","fc_equipment","fc_licenses","fc_insurance","fc_other",
+                                     "fl_pct","pr_pct","ex_pct","fl_price","pr_price","ex_price"]:
+                            st.session_state[f"{_p}{_col}"] = _sv(_col)
+                        st.session_state[f"{_p}cycles"] = int(_sv("cycles", int))
+                    st.session_state.econ_results = None
+                    st.rerun()
+                st.success(f"Found {n_load} scenario row(s). Click the button above to load.")
+                st.dataframe(_udf.head(n_load), use_container_width=True, hide_index=True)
+        except Exception as _e:
+            st.error(f"Could not parse file: {_e}")
 
 n = st.session_state.econ_n_scenarios
 tab_labels = [f"📋 Scenario {i+1}" for i in range(n)] + ["📊 Summary & Charts"]

@@ -4,6 +4,9 @@ NY Cannabis & Hemp Grower Tools — multi-page Streamlit application.
 """
 
 import streamlit as st
+import sys, os
+sys.path.insert(0, os.path.dirname(__file__))
+from utils.sidebar import render_sidebar
 
 st.set_page_config(
     page_title="NYS Cannabis & Hemp Grower Tools",
@@ -11,6 +14,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+render_sidebar()
 
 # ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""

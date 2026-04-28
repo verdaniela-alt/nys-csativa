@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import streamlit as st
 import pandas as pd
+from utils.sidebar import render_sidebar
 
 try:
     import openpyxl
@@ -28,6 +29,7 @@ st.set_page_config(
     page_icon="🌿",
     layout="wide",
 )
+render_sidebar()
 
 st.markdown("""
 <style>
