@@ -62,6 +62,29 @@ amend_cost_low  = st.session_state.get("soil_amendment_cost_low", None)
 amend_cost_high = st.session_state.get("soil_amendment_cost_high", None)
 amend_acres     = st.session_state.get("soil_amendment_acres", 1.0)
 
+# Pre-fill data from Crop Overview batch
+_co_batch    = st.session_state.get("crop_overview_batch_id", None)
+_co_strain   = st.session_state.get("crop_overview_strain", "")
+_co_nplants  = st.session_state.get("crop_overview_n_plants", 0)
+_co_yld_lbs  = st.session_state.get("crop_overview_yield_lbs", 0)
+_co_yld_pp   = st.session_state.get("crop_overview_yield_pp", 0)
+_co_acres    = st.session_state.get("crop_overview_acres", 0)
+_co_fl_price = st.session_state.get("crop_overview_flower_price_lb", 0)
+
+# Apply Crop Overview pre-fills to scenario 1 (only once, on first load)
+if _co_batch and f"sc1_crop_overview_prefilled" not in st.session_state:
+    if _co_nplants:
+        st.session_state["sc1_n_plants"] = float(_co_nplants)
+    if _co_yld_pp:
+        st.session_state["sc1_yield_pp"] = float(_co_yld_pp)
+    if _co_acres:
+        st.session_state["sc1_acres"] = float(_co_acres)
+    if _co_fl_price:
+        st.session_state["sc1_flower_price"] = float(_co_fl_price)
+    if _co_strain:
+        st.session_state["sc1_name"] = f"{_co_batch} — {_co_strain}"
+    st.session_state["sc1_crop_overview_prefilled"] = True
+
 # ── NYS wholesale price reference (2024-25) ───────────────────────────────────
 NYS_PRICES = {
     "Outdoor": {
@@ -180,6 +203,21 @@ def gv(key, default=0.0):
 def render_scenario(i):
     """Render all input sections for scenario i."""
     p = f"e{i}_"
+
+    # Banner: pre-fill from Crop Overview (scenario 1 only)
+    if i == 1 and _co_batch:
+        parts = []
+        if _co_nplants: parts.append(f"**{_co_nplants:,} plants**")
+        if _co_yld_lbs: parts.append(f"**{_co_yld_lbs:,.1f} lbs** dry yield")
+        if _co_acres:   parts.append(f"**{_co_acres:.2f} acres**")
+        if _co_fl_price: parts.append(f"flower price **${_co_fl_price:,.2f}/lb**")
+        st.info(
+            f"🌿 **From Crop Overview — Batch {_co_batch}:** "
+            + (f"*{_co_strain}* · " if _co_strain else "")
+            + ", ".join(parts)
+            + ". Pre-filled below — edit any value as needed.",
+            icon="🌿",
+        )
 
     # ── 1. Operation Setup ────────────────────────────────────────────────
     with st.expander("🏗️ 1. Operation Setup", expanded=True):
