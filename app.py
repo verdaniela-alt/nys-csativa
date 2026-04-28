@@ -83,7 +83,14 @@ the sole responsibility of the grower.<br><br>
 Address geocoding by <a href="https://geocoding.geo.census.gov" target="_blank">US Census Geocoder</a> ·
 <b>Nutrient targets:</b> NY State extension frameworks, peer-reviewed cannabis agronomy literature,
 and CCA guidance for northeastern US production (Mehlich III equivalents) ·
-<b>Amendment rates:</b> representative ranges only — determine actual rates with a CCA.
+<b>Lab conversions (MM→M3):</b>
+<a href="http://nmsp.cals.cornell.edu/software/conv-tools.html" target="_blank">Cornell NMSP Conversion Tools</a>
+(Cornell Nutrient Management Spear Program, v7) ·
+<b>Lime recommendations:</b> Cornell NMSP Lime Guidelines Calculator v2.0 (March 2014) ·
+<b>Amendment rates:</b> representative ranges only — determine actual rates with a CCA.<br>
+<b>Hemp economics:</b> Bader (Univ. of Kentucky, 2021) hemp enterprise budgets ·
+<a href="https://hemp.mgcafe.uky.edu/marketing-economics" target="_blank">UK Hemp Marketing &amp; Economics Tool</a> ·
+<b>Cannabis economics:</b> Ruterbories, Hanchar &amp; Vergara (2025) · NYS OCM market reports &amp; Cannabis Benchmarks (2024–25).
 </div>
 """, unsafe_allow_html=True)
 

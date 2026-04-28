@@ -884,5 +884,11 @@ for col, (icon, title, desc) in zip(steps, step_data):
         st.markdown(f"**{icon} {title}**")
         st.caption(desc)
 
-st.caption("Built for NYS licensed cultivators · Data: USDA NRCS + US Census Geocoder · "
-           "Targets: NY State Extension / CCE agronomic frameworks")
+st.caption(
+    "Built for NYS licensed cultivators · "
+    "Soil data: USDA NRCS SSURGO · Geocoding: US Census Geocoder · "
+    "Nutrient targets: NY State Extension / CCE frameworks · "
+    "Lab conversions (MM→M3): Cornell NMSP Conversion Tools (nmsp.cals.cornell.edu/software/conv-tools.html) · "
+    "Lime rates: Cornell NMSP Lime Guidelines Calculator v2.0 (2014) · "
+    "Amendment rates: representative ranges only — consult a CCA."
+)

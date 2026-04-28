@@ -1095,7 +1095,9 @@ with tabs[-1]:
 
 st.divider()
 st.caption(
-    "Price references: NYS OCM market reports & Cannabis Benchmarks (2024–25). "
-    "Cost structure: adapted from Ruterbories, Hanchar & Vergara (2025). "
+    "Cannabis price references: NYS OCM market reports & Cannabis Benchmarks (2024–25) · "
+    "Cannabis cost structure: adapted from Ruterbories, Hanchar & Vergara (2025) · "
+    "Hemp enterprise budgets: Bader (Univ. of Kentucky, 2021) · "
+    "Hemp marketing & economics: UK Hemp Tool (hemp.mgcafe.uky.edu/marketing-economics) · "
     "This tool is for planning purposes only."
 )
