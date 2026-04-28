@@ -1637,6 +1637,70 @@ with outer_tabs[2]:
                     use_container_width=True)
         st.divider()
 
+    # ── Economics Comparison ──────────────────────────────────────────────────
+    econ_results = st.session_state.get("econ_results", [])
+    if econ_results:
+        with st.expander("📊 Compare vs. Economics Projection", expanded=False):
+            sc_names = [r.get("name") or f"Scenario {i+1}" for i, r in enumerate(econ_results)]
+            chosen_sc = st.selectbox("Select Economics scenario to compare against",
+                                     sc_names, key="dash_econ_sc_select")
+            sc_idx = sc_names.index(chosen_sc)
+            sc = econ_results[sc_idx]
+
+            # Actual values from this batch
+            actual_yield_g = pos_d.get("dried_weight_g") or 0
+            actual_yield_lbs = actual_yield_g / 453.592 if actual_yield_g else 0
+            actual_rev = fl_rev + pr_rev + bm_rev + trim_rev
+
+            proj_yield = sc.get("total_yield_lbs", 0)
+            proj_rev   = sc.get("total_revenue", 0)
+            proj_vc    = sc.get("total_vc", 0)
+
+            ec1, ec2, ec3 = st.columns(3)
+            with ec1:
+                st.metric(
+                    "Yield — Projected (lbs)",
+                    f"{proj_yield:,.1f}",
+                    delta=f"{actual_yield_lbs - proj_yield:+,.1f} actual vs proj" if actual_yield_lbs else None,
+                )
+                st.caption(f"Actual dry yield: **{actual_yield_lbs:,.1f} lbs** ({actual_yield_g:,.0f} g)")
+            with ec2:
+                st.metric(
+                    "Revenue — Projected",
+                    f"${proj_rev:,.0f}",
+                    delta=f"${actual_rev - proj_rev:+,.0f} actual vs proj" if actual_rev else None,
+                )
+                st.caption(f"Actual revenue: **${actual_rev:,.2f}**")
+            with ec3:
+                proj_net = sc.get("net_return", 0)
+                st.metric("Projected Net Return", f"${proj_net:,.0f}")
+                st.caption(f"Projected variable costs: **${proj_vc:,.0f}**")
+
+            if proj_yield > 0 and actual_yield_lbs > 0:
+                yield_pct = actual_yield_lbs / proj_yield * 100
+                rev_pct   = (actual_rev / proj_rev * 100) if proj_rev > 0 else 0
+                st.progress(min(yield_pct / 100, 1.0),
+                            text=f"Yield achieved: **{yield_pct:.1f}%** of projection")
+                if proj_rev > 0:
+                    st.progress(min(rev_pct / 100, 1.0),
+                                text=f"Revenue achieved: **{rev_pct:.1f}%** of projection")
+
+            st.caption(
+                f"Scenario source: '{chosen_sc}' from the Economics Tool · "
+                "Navigate to 💰 Economics to edit projections."
+            )
+        st.divider()
+    else:
+        with st.expander("📊 Compare vs. Economics Projection", expanded=False):
+            st.info(
+                "No Economics scenarios found in this session. "
+                "Open the 💰 Economics tool, build a scenario, and return here to compare projected vs. actual.",
+                icon="💡",
+            )
+            if st.button("→ Go to Economics Tool", key="dash_go_econ"):
+                st.switch_page("pages/2_Economics.py")
+        st.divider()
+
     # Per-batch download
     st.markdown(f"### Download — {dash_selected}")
     row_ph = {"Batch Number": dash_selected}; row_ph.update(ph_d)
