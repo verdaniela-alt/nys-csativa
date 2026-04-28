@@ -152,6 +152,11 @@ with st.expander("📍 Step 1: Site Location & Soil Survey Lookup", expanded=Tru
         else:
             st.warning("⚠️ No NRCS data found. You can still enter data manually below.")
 
+        # Map
+        st.markdown("**📍 Field Location**")
+        st.map(pd.DataFrame({"lat": [soil["lat"]], "lon": [soil["lon"]]}),
+               zoom=13, use_container_width=True)
+
     st.caption("Data from USDA NRCS SSURGO. For an interactive map visit "
                "[SoilWeb](https://casoilresource.lawr.ucdavis.edu/gmap/).")
 
