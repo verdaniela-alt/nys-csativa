@@ -186,7 +186,42 @@ with col6:
         st.switch_page("pages/6_CIP_Form.py")
 
 with col7:
+    st.markdown("""
+<div class="tool-card">
+  <h3>📂 SOP Library <span class="badge badge-live">LIVE</span></h3>
+  <p>Downloadable Standard Operating Procedure templates for licensed NYS cannabis and hemp operations.</p>
+  <ul>
+    <li>164 SOPs across Cultivation, Processing, Retail, and General categories</li>
+    <li>Master Index & Cross-Reference Guide</li>
+    <li>Microsoft Word (.docx) format — customisable with your business details</li>
+    <li>Generic/white-label templates — not legal or compliance advice</li>
+  </ul>
+</div>
+""", unsafe_allow_html=True)
     st.write("")
+    if st.button("→ Open SOP Library", use_container_width=True, type="primary"):
+        st.switch_page("pages/7_Resources.py")
+
+st.write("")
+col8, col_spacer2 = st.columns([2, 1], gap="large")
+
+with col8:
+    st.markdown("""
+<div class="tool-card">
+  <h3>💬 Site Feedback <span class="badge badge-live">LIVE</span></h3>
+  <p>Help us improve these tools — share your experience and suggestions.</p>
+  <ul>
+    <li>New vs. returning user check-in</li>
+    <li>Optional demographics (age, sex, orientation)</li>
+    <li>NYS county (if applicable)</li>
+    <li>Free-text suggestions for improvements</li>
+    <li>Anonymous — no personally identifiable information collected</li>
+  </ul>
+</div>
+""", unsafe_allow_html=True)
+    st.write("")
+    if st.button("→ Share Feedback", use_container_width=True, type="primary"):
+        st.switch_page("pages/8_Feedback.py")
 
 st.caption("Built for NYS licensed cultivators · Data: USDA NRCS + US Census Geocoder · "
            "Targets: NY State Extension / CCE agronomic frameworks")

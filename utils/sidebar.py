@@ -57,6 +57,14 @@ def render_sidebar():
 
         st.divider()
 
+        st.page_link("pages/7_Resources.py", label="📂 SOP Library")
+
+        st.divider()
+
+        st.page_link("pages/8_Feedback.py", label="💬 Feedback")
+
+        st.divider()
+
         st.caption(
             "Built for NYS licensed cultivators\n"
             "Data: USDA NRCS · US Census Geocoder\n"
