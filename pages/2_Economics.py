@@ -102,6 +102,65 @@ VC_KEYS = [
 
 NYS_EXCISE_RATE = 0.09   # 9% of gross wholesale revenue — NYS TP-600
 
+# ── Hemp production models & price benchmarks ─────────────────────────────────
+# Source: hemp_budgets_2021_MarkKentucky.xlsx (Bader, U. Kentucky 2021)
+# Prices adjusted for current (2024-25) NY market conditions.
+HEMP_PROD_MODELS = [
+    "CBD Flower (Transplant)",
+    "CBD Flower (Plasticulture)",
+    "CBD Row Crop",
+    "Grain Hemp",
+    "Fiber Hemp",
+]
+
+# price range ($/lb), label, and Kentucky 2021 reference note
+HEMP_PRICES = {
+    "CBD Flower (Transplant)":    {"label": "Dry Floral Material (DFM)", "low": 2.00, "high": 5.00,
+                                   "ref": "KY 2021: $4.50/lb · NY 2024–25 market: $2–5/lb"},
+    "CBD Flower (Plasticulture)": {"label": "Dry Floral Material (DFM)", "low": 2.00, "high": 5.00,
+                                   "ref": "KY 2021: $4.50/lb · NY 2024–25 market: $2–5/lb"},
+    "CBD Row Crop":               {"label": "CBD Biomass / Dry Matter",  "low": 1.50, "high": 3.00,
+                                   "ref": "KY 2021: $1.80–2.10/lb · NY 2024–25 market: $1.50–3.00/lb"},
+    "Grain Hemp":                 {"label": "Hemp Grain",                "low": 0.35, "high": 0.65,
+                                   "ref": "KY 2021: $0.48/lb · current market: $0.35–0.65/lb"},
+    "Fiber Hemp":                 {"label": "Hemp Fiber",                "low": 0.08, "high": 0.18,
+                                   "ref": "KY 2021: $0.11/lb · current market: $0.08–0.18/lb"},
+}
+
+# Kentucky 2021 reference budgets per acre (used for help text / defaults)
+HEMP_REF = {
+    "CBD Flower (Transplant)":    {"yield_ac": 2586, "spacing": "4×4 ft", "plants_ac": 2722,
+                                   "transplant_$/plant": 2.17, "harvest_hrs": 32.4,
+                                   "total_vc": 7419, "total_fc": 107, "net": 4112},
+    "CBD Flower (Plasticulture)": {"yield_ac": 1655, "spacing": "5×5 ft", "plants_ac": 1742,
+                                   "transplant_$/plant": 2.17, "harvest_hrs": 32.4,
+                                   "plastic_mulch": 724, "plastic_removal": 156,
+                                   "total_vc": 6347, "total_fc": 71,  "net": 1030},
+    "CBD Row Crop":               {"yield_ac": 1400, "seed_lbs_ac": 30,  "seed_$/lb": 2.0,
+                                   "total_vc": 873,  "total_fc": 122, "net": 1898},
+    "Grain Hemp":                 {"yield_ac": 1200, "seed_lbs_ac": 30,  "seed_$/lb": 2.0,
+                                   "total_vc": 336,  "total_fc": 121, "net": 120},
+    "Fiber Hemp":                 {"yield_ac": 8000, "seed_lbs_ac": 50,  "seed_$/lb": 2.0,
+                                   "total_vc": 442,  "total_fc": 122, "net": 316},
+}
+
+# Hemp VC keys that are always included in compute
+HEMP_VC_KEYS = [
+    ("Seeds / Transplants",           "vc_seeds"),
+    ("Fertilizer & Amendments",       "vc_amendments"),
+    ("Crop Protection",               "vc_crop_prot"),
+    ("Water & Irrigation",            "vc_water"),
+    ("Drying / Processing",           "vc_energy"),
+    ("Packaging & Supplies",          "vc_packaging"),
+    ("Testing / Lab Fees (COA)",      "vc_testing"),
+    ("Hauling & Transport",           "vc_hauling"),
+    ("Transplant Cost",               "vc_transplants"),
+    ("Plastic Mulch & Drip Line",     "vc_plastic_mulch"),
+    ("Plastic Removal",               "vc_plastic_removal"),
+    ("Interest on Operating Capital", "vc_interest_oc"),
+    ("Other Variable Costs",          "vc_other"),
+]
+
 FC_KEYS = [
     ("Land Rent / Lease",               "fc_land"),
     ("Buildings & Infrastructure",      "fc_buildings"),
@@ -142,6 +201,24 @@ def render_scenario(i):
             st.selectbox("Plant type", ["Photoperiod", "Autoflower"],
                          key=f"{p}plant_type")
 
+        _crop_now = st.session_state.get(f"{p}crop_type", "Cannabis (MJ)")
+        if _crop_now == "Hemp":
+            _hmc1, _hmc2 = st.columns([2, 3])
+            with _hmc1:
+                st.selectbox("Hemp production model", HEMP_PROD_MODELS,
+                             key=f"{p}hemp_prod_model",
+                             help="Transplant models use per-plant yield; row-crop/grain/fiber use per-acre yield.")
+            with _hmc2:
+                _hpm_sel = st.session_state.get(f"{p}hemp_prod_model", HEMP_PROD_MODELS[0])
+                _hpm_href = HEMP_REF.get(_hpm_sel, {})
+                _hpm_hp   = HEMP_PRICES.get(_hpm_sel, {})
+                st.caption(
+                    f"**KY 2021 reference ({_hpm_sel}):** "
+                    f"{_hpm_href.get('yield_ac', 0):,} lbs/acre · "
+                    f"Net return: **${_hpm_href.get('net', 0):,}/acre** · "
+                    f"Price: {_hpm_hp.get('ref', '')}"
+                )
+
         c1, c2, c3 = st.columns(3)
         with c1:
             st.number_input("Total growing area (sq ft)", min_value=0.0, step=500.0,
@@ -156,32 +233,105 @@ def render_scenario(i):
                             min_value=0.0, step=0.1, key=f"{p}acres",
                             help="If blank, calculated from sq ft above. Used for amendment cost scaling.")
 
+    # Derive crop/hemp flags (used by sections 2, 4, 6)
+    _crop = st.session_state.get(f"{p}crop_type", "Cannabis (MJ)")
+    _hpm  = st.session_state.get(f"{p}hemp_prod_model", HEMP_PROD_MODELS[0])
+    _is_hemp           = _crop == "Hemp"
+    _is_hemp_transplant = _is_hemp and _hpm in ["CBD Flower (Transplant)", "CBD Flower (Plasticulture)"]
+    _is_hemp_rowcrop    = _is_hemp and _hpm in ["CBD Row Crop", "Grain Hemp", "Fiber Hemp"]
+    _is_plasticulture   = _hpm == "CBD Flower (Plasticulture)"
+    area   = gv(f"{p}area_sqft")
+    cycles = int(gv(f"{p}cycles", 1))
+    acres  = gv(f"{p}acres") or (area / 43560)
+
     # ── 2. Production & Yield ─────────────────────────────────────────────
     with st.expander("🌿 2. Production & Yield", expanded=True):
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            st.number_input("Plants per cycle", min_value=0.0, step=10.0,
-                            key=f"{p}n_plants",
-                            help="Reference: greenhouse ~450 auto / 3,150 photo per 30,000 sq ft")
-        with c2:
-            st.number_input("Dry yield per plant (lbs)", min_value=0.0,
-                            step=0.01, format="%.3f", key=f"{p}yield_pp",
-                            help="After drying & trimming. Ref: auto ~0.04 lbs; photoperiod ~0.18 lbs (greenhouse)")
-        with c3:
-            n_pl = gv(f"{p}n_plants")
-            y_pp = gv(f"{p}yield_pp")
-            cyc  = int(gv(f"{p}cycles", 1))
-            total_yield = n_pl * y_pp * cyc
-            st.metric("Total dry yield / yr (lbs)", f"{total_yield:,.1f}")
-        with c4:
-            st.number_input("Moisture loss %", min_value=50.0, max_value=95.0,
-                            value=82.0, step=1.0, key=f"{p}moisture",
-                            help="~82% moisture lost during drying (18% of wet weight remains as dry flower)")
+        if _is_hemp_transplant:
+            _href2 = HEMP_REF.get(_hpm, {})
+            st.markdown("**Plant Spacing Calculator** — plants/acre from row × in-row spacing")
+            sc1, sc2, sc3 = st.columns(3)
+            with sc1:
+                _sp_str = _href2.get("spacing", "4×4 ft")
+                try:
+                    _sp_parts = _sp_str.replace("ft", "").split("×")
+                    _def_row = float(_sp_parts[0].strip())
+                    _def_inrow = float(_sp_parts[1].strip())
+                except (ValueError, IndexError):
+                    _def_row, _def_inrow = 4.0, 4.0
+                row_sp = st.number_input("Row spacing (ft)", min_value=0.5, value=_def_row,
+                                         step=0.5, key=f"{p}row_spacing",
+                                         help=f"KY ref: {_sp_str}")
+            with sc2:
+                inrow_sp = st.number_input("In-row spacing (ft)", min_value=0.5, value=_def_inrow,
+                                            step=0.5, key=f"{p}inrow_spacing")
+            with sc3:
+                calc_pl_ac = 43560 / (row_sp * inrow_sp) if row_sp > 0 and inrow_sp > 0 else 0
+                st.metric("Plants / acre (calculated)", f"{calc_pl_ac:,.0f}",
+                          help=f"KY 2021: {_href2.get('plants_ac', 0):,} plants/acre at {_sp_str}")
+            calc_total_pl = calc_pl_ac * acres if acres > 0 else 0
 
-        area = gv(f"{p}area_sqft")
-        if area > 0 and total_yield > 0:
-            st.caption(f"Yield density: **{total_yield/area*1000:.2f} g/sq ft/yr** "
-                       f"| **{total_yield/area*43560:.1f} lbs/acre/yr**")
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.number_input("Plants per cycle (override)", min_value=0.0, step=10.0,
+                                value=float(round(calc_total_pl)),
+                                key=f"{p}n_plants",
+                                help="Auto-calculated from spacing × acres. Override if needed.")
+            with c2:
+                _ypp_ref = (_href2.get("yield_ac", 0) / max(_href2.get("plants_ac", 1), 1))
+                st.number_input("Dry yield per plant (lbs)", min_value=0.0, step=0.01,
+                                format="%.3f", key=f"{p}yield_pp",
+                                help=f"After drying. KY 2021 ref: {_ypp_ref:.3f} lbs/plant")
+            with c3:
+                n_pl = gv(f"{p}n_plants"); y_pp = gv(f"{p}yield_pp")
+                total_yield = n_pl * y_pp * cycles
+                st.metric("Total dry yield / yr (lbs)", f"{total_yield:,.1f}",
+                          help=f"KY ref: {_href2.get('yield_ac', 0) * acres:.0f} lbs for {acres:.1f} acres")
+            with c4:
+                st.number_input("Moisture loss %", min_value=50.0, max_value=95.0,
+                                value=82.0, step=1.0, key=f"{p}moisture")
+            if _href2.get("yield_ac") and acres > 0:
+                st.caption(f"KY 2021 reference yield for {acres:.1f} acres: "
+                           f"**{_href2['yield_ac'] * acres:,.0f} lbs** ({_href2['yield_ac']:,} lbs/acre)")
+
+        elif _is_hemp_rowcrop:
+            _href2 = HEMP_REF.get(_hpm, {})
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.number_input("Yield per acre (lbs/acre)", min_value=0.0,
+                                value=float(_href2.get("yield_ac", 0)), step=50.0,
+                                key=f"{p}yield_per_acre",
+                                help=f"KY 2021 reference: {_href2.get('yield_ac', 0):,} lbs/acre")
+            with c2:
+                y_ac = gv(f"{p}yield_per_acre")
+                total_yield = y_ac * acres * cycles
+                st.metric("Total dry yield / yr (lbs)", f"{total_yield:,.1f}")
+            with c3:
+                st.number_input("Moisture loss %", min_value=50.0, max_value=95.0,
+                                value=82.0, step=1.0, key=f"{p}moisture")
+            if acres > 0:
+                st.caption(f"Yield = {y_ac:,.0f} lbs/acre × {acres:.1f} acres × {cycles} cycle(s)")
+
+        else:  # Cannabis MJ
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.number_input("Plants per cycle", min_value=0.0, step=10.0,
+                                key=f"{p}n_plants",
+                                help="Reference: greenhouse ~450 auto / 3,150 photo per 30,000 sq ft")
+            with c2:
+                st.number_input("Dry yield per plant (lbs)", min_value=0.0,
+                                step=0.01, format="%.3f", key=f"{p}yield_pp",
+                                help="After drying & trimming. Ref: auto ~0.04 lbs; photoperiod ~0.18 lbs (greenhouse)")
+            with c3:
+                n_pl = gv(f"{p}n_plants"); y_pp = gv(f"{p}yield_pp")
+                total_yield = n_pl * y_pp * cycles
+                st.metric("Total dry yield / yr (lbs)", f"{total_yield:,.1f}")
+            with c4:
+                st.number_input("Moisture loss %", min_value=50.0, max_value=95.0,
+                                value=82.0, step=1.0, key=f"{p}moisture",
+                                help="~82% moisture lost during drying (18% of wet weight remains as dry flower)")
+            if area > 0 and total_yield > 0:
+                st.caption(f"Yield density: **{total_yield/area*1000:.2f} g/sq ft/yr** "
+                           f"| **{total_yield/area*43560:.1f} lbs/acre/yr**")
 
     # ── 3. Labor Costs ────────────────────────────────────────────────────
     with st.expander("👷 3. Labor Costs", expanded=True):
@@ -192,6 +342,10 @@ def render_scenario(i):
                             help="Reference: $20/hr (Ruterbories et al. 2025). Include benefits if applicable.")
 
         st.markdown("**Total hours for the season / year by task category:**")
+        if _is_hemp_transplant or _is_hemp_rowcrop:
+            _lhref = HEMP_REF.get(_hpm, {})
+            if _lhref.get("harvest_hrs"):
+                st.caption(f"KY 2021 reference harvest labor: **{_lhref['harvest_hrs']} hrs/acre** for {_hpm}")
         cols = st.columns(4)
         for j, (label, suffix) in enumerate(LABOR_TASKS):
             with cols[j % 4]:
@@ -218,47 +372,117 @@ def render_scenario(i):
             if f"{p}vc_amendments" not in st.session_state:
                 st.session_state[f"{p}vc_amendments"] = float(amend_prefill)
 
-        c1, c2 = st.columns(2)
-        vc_items = [
-            ("Seeds / Clones ($)", "vc_seeds",
-             "Auto seeds ~$1.50/seed; photoperiod clones ~$13.50/clone"),
-            ("Fertilizer & Amendments ($)", "vc_amendments",
-             "Pre-filled from Soil Assessment if available"),
-            ("Crop Protection ($)", "vc_crop_prot",
-             "Pesticides, biologicals, fungicides, beneficial insects"),
-            ("Water & Irrigation Supplies ($)", "vc_water",
-             "Municipal water, well costs, drip tape, irrigation supplies"),
-        ]
-        vc_items2 = [
-            ("Energy / Electricity ($)", "vc_energy",
-             "Lighting, HVAC, dehumidifiers (indoor/greenhouse); pumps (outdoor)"),
-            ("Packaging & Supplies ($)", "vc_packaging",
-             "Bags, jars, labels, trim bins, drying nets, zip ties"),
-            ("Testing / Lab Fees (COA) ($)", "vc_testing",
-             "NYS compliance COA testing: ~$50–150/sample. Budget 1 sample per lot/variety."),
-            ("Other Variable Costs ($)", "vc_other", ""),
-        ]
-        with c1:
-            for label, suffix, help_txt in vc_items:
-                st.number_input(label, min_value=0.0, step=10.0,
-                                key=f"{p}{suffix}", help=help_txt)
-        with c2:
-            for label, suffix, help_txt in vc_items2:
-                st.number_input(label, min_value=0.0, step=10.0,
-                                key=f"{p}{suffix}", help=help_txt)
-
         wage2      = gv(f"{p}wage", 20.0)
         total_hrs2 = sum(gv(f"{p}{s}") for _, s in LABOR_TASKS)
         total_lbr2 = wage2 * total_hrs2
-        total_vc   = sum(gv(f"{p}{s}") for _, s in VC_KEYS) + total_lbr2
 
-        # ── NYS Excise Tax — Cannabis (MJ) only ───────────────────────────
-        _is_mj = st.session_state.get(f"{p}crop_type", "Cannabis (MJ)") == "Cannabis (MJ)"
-        if _is_mj:
+        if _is_hemp:
+            _vc_href = HEMP_REF.get(_hpm, {})
+            st.caption(f"KY 2021 total variable costs reference: **${_vc_href.get('total_vc', 0):,}/acre**")
+            _hemp_vc_left = [
+                ("Seeds / Transplants ($)", "vc_seeds",
+                 (f"Transplant purchase. KY ref: ${_vc_href.get('transplant_$/plant', 2.17):.2f}/plant")
+                 if _is_hemp_transplant else
+                 f"Seed. KY ref: {_vc_href.get('seed_lbs_ac', '')} lbs/acre × ${_vc_href.get('seed_$/lb', '')} /lb"),
+                ("Fertilizer & Amendments ($)", "vc_amendments",
+                 "Pre-filled from Soil Assessment if available"),
+                ("Crop Protection ($)", "vc_crop_prot",
+                 "Pesticides, biologicals, fungicides, beneficial insects"),
+                ("Water & Irrigation ($)", "vc_water",
+                 "Municipal water, well costs, drip tape, irrigation supplies"),
+                ("Drying / Processing ($)", "vc_energy",
+                 "Drying, curing, processing energy costs"),
+                ("Packaging & Supplies ($)", "vc_packaging",
+                 "Bags, labels, trim bins, drying nets"),
+            ]
+            _hemp_vc_right = [
+                ("Testing / Lab Fees (COA) ($)", "vc_testing",
+                 "Compliance COA testing: ~$50–150/sample"),
+                ("Hauling & Transport ($)", "vc_hauling",
+                 "Transport to processor/buyer. Include haul distance & rate."),
+                ("Other Variable Costs ($)", "vc_other", ""),
+            ]
+            if _is_hemp_transplant:
+                _hemp_vc_right.insert(0, (
+                    "Transplant Cost ($)", "vc_transplants",
+                    f"Cost to purchase/grow transplants. KY ref: ${_vc_href.get('transplant_$/plant', 2.17):.2f}/plant"))
+            if _is_plasticulture:
+                _hemp_vc_right.insert(1, (
+                    "Plastic Mulch & Drip Line ($)", "vc_plastic_mulch",
+                    f"KY 2021 reference: ${_vc_href.get('plastic_mulch', 724):,}/acre"))
+                _hemp_vc_right.insert(2, (
+                    "Plastic Removal ($)", "vc_plastic_removal",
+                    f"KY 2021 reference: ${_vc_href.get('plastic_removal', 156):,}/acre"))
+
+            c1, c2 = st.columns(2)
+            with c1:
+                for label, suffix, help_txt in _hemp_vc_left:
+                    st.number_input(label, min_value=0.0, step=10.0,
+                                    key=f"{p}{suffix}", help=help_txt)
+            with c2:
+                for label, suffix, help_txt in _hemp_vc_right:
+                    st.number_input(label, min_value=0.0, step=10.0,
+                                    key=f"{p}{suffix}", help=help_txt)
+
+            # Interest on Operating Capital
+            st.divider()
+            st.markdown("**Interest on Operating Capital**")
+            ioc_c1, ioc_c2, ioc_c3 = st.columns(3)
+            with ioc_c1:
+                ioc_months = st.number_input("Months capital is tied up", min_value=1, max_value=12,
+                                             value=6, step=1, key=f"{p}ioc_months",
+                                             help="Outdoor hemp: ~4–6 months (KY 2021 used 6 months)")
+            with ioc_c2:
+                ioc_rate = st.number_input("Interest rate (%)", min_value=0.0, max_value=30.0,
+                                           value=6.0, step=0.5, key=f"{p}ioc_rate",
+                                           help="KY 2021 used 6.0% annual rate on operating loan")
+            with ioc_c3:
+                _all_hemp_suf = [s for _, s in HEMP_VC_KEYS if s != "vc_interest_oc"]
+                _ioc_base = sum(gv(f"{p}{s}") for s in _all_hemp_suf) + total_lbr2
+                _ioc_est  = _ioc_base * (ioc_rate / 100) * (ioc_months / 12)
+                st.metric("Interest on OC (estimated)", f"${_ioc_est:,.0f}")
+            st.session_state[f"{p}vc_interest_oc_calc"] = _ioc_est
+
+            total_vc = sum(gv(f"{p}{s}") for s in _all_hemp_suf) + total_lbr2 + _ioc_est
+            st.metric("Total Variable Costs (incl. labor & interest on OC)", f"${total_vc:,.0f}")
+
+        else:  # Cannabis MJ
+            c1, c2 = st.columns(2)
+            vc_items = [
+                ("Seeds / Clones ($)", "vc_seeds",
+                 "Auto seeds ~$1.50/seed; photoperiod clones ~$13.50/clone"),
+                ("Fertilizer & Amendments ($)", "vc_amendments",
+                 "Pre-filled from Soil Assessment if available"),
+                ("Crop Protection ($)", "vc_crop_prot",
+                 "Pesticides, biologicals, fungicides, beneficial insects"),
+                ("Water & Irrigation Supplies ($)", "vc_water",
+                 "Municipal water, well costs, drip tape, irrigation supplies"),
+            ]
+            vc_items2 = [
+                ("Energy / Electricity ($)", "vc_energy",
+                 "Lighting, HVAC, dehumidifiers (indoor/greenhouse); pumps (outdoor)"),
+                ("Packaging & Supplies ($)", "vc_packaging",
+                 "Bags, jars, labels, trim bins, drying nets, zip ties"),
+                ("Testing / Lab Fees (COA) ($)", "vc_testing",
+                 "NYS compliance COA testing: ~$50–150/sample. Budget 1 sample per lot/variety."),
+                ("Other Variable Costs ($)", "vc_other", ""),
+            ]
+            with c1:
+                for label, suffix, help_txt in vc_items:
+                    st.number_input(label, min_value=0.0, step=10.0,
+                                    key=f"{p}{suffix}", help=help_txt)
+            with c2:
+                for label, suffix, help_txt in vc_items2:
+                    st.number_input(label, min_value=0.0, step=10.0,
+                                    key=f"{p}{suffix}", help=help_txt)
+
+            total_vc = sum(gv(f"{p}{s}") for _, s in VC_KEYS) + total_lbr2
+
+            # ── NYS Excise Tax — Cannabis (MJ) only ───────────────────────
             ty_vc  = gv(f"{p}n_plants") * gv(f"{p}yield_pp") * int(gv(f"{p}cycles", 1))
             fl_p   = gv(f"{p}fl_price"); pr_p = gv(f"{p}pr_price"); ex_p = gv(f"{p}ex_price")
             fl_pct = gv(f"{p}fl_pct");   pr_pct = gv(f"{p}pr_pct"); ex_pct = gv(f"{p}ex_pct")
-            rev_est   = ty_vc * (fl_pct/100*fl_p + pr_pct/100*pr_p + ex_pct/100*ex_p)
+            rev_est    = ty_vc * (fl_pct/100*fl_p + pr_pct/100*pr_p + ex_pct/100*ex_p)
             excise_est = round(rev_est * NYS_EXCISE_RATE, 2)
             st.divider()
             st.markdown("**NYS Cannabis Excise Tax — Cannabis (MJ) only**")
@@ -276,8 +500,7 @@ def render_scenario(i):
                      "Fill in Step 6 prices first for an accurate estimate.",
             )
             total_vc += gv(f"{p}vc_excise")
-
-        st.metric("Total Variable Costs (incl. labor)", f"${total_vc:,.0f}")
+            st.metric("Total Variable Costs (incl. labor)", f"${total_vc:,.0f}")
 
     # ── 5. Fixed Costs ────────────────────────────────────────────────────
     with st.expander("🏠 5. Fixed Costs (Annual)", expanded=True):
@@ -316,97 +539,155 @@ def render_scenario(i):
 
     # ── 6. Revenue ────────────────────────────────────────────────────────
     with st.expander("💰 6. Revenue", expanded=True):
-        op  = st.session_state.get(f"{p}op_type", "Outdoor")
-        pt  = st.session_state.get(f"{p}plant_type", "Photoperiod")
-        ref = NYS_PRICES.get(op, NYS_PRICES["Outdoor"]).get(pt, NYS_PRICES["Outdoor"]["Photoperiod"])
+        if _is_hemp:
+            _hpinfo = HEMP_PRICES.get(_hpm, list(HEMP_PRICES.values())[0])
+            st.markdown(f"**Hemp price reference — {_hpm} ({_hpinfo['label']}) (2024–25):**")
+            st.caption(_hpinfo["ref"])
+            st.divider()
+            _mid_hp = (_hpinfo["low"] + _hpinfo["high"]) / 2
+            rc1, rc2 = st.columns(2)
+            with rc1:
+                st.number_input(f"Wholesale price / lb — {_hpinfo['label']} ($/lb)",
+                                min_value=0.0, step=0.10, format="%.2f",
+                                value=float(_mid_hp),
+                                key=f"{p}hemp_price",
+                                help=f"Market range: ${_hpinfo['low']:.2f}–${_hpinfo['high']:.2f}/lb")
+                st.caption(f"Low: ${_hpinfo['low']:.2f} · High: ${_hpinfo['high']:.2f} · Mid: ${_mid_hp:.2f}/lb")
+            with rc2:
+                if _is_hemp_rowcrop:
+                    _yld_prev = gv(f"{p}yield_per_acre") * acres * cycles
+                else:
+                    _yld_prev = gv(f"{p}n_plants") * gv(f"{p}yield_pp") * cycles
+                _rev_prev = _yld_prev * gv(f"{p}hemp_price", _mid_hp)
+                st.metric("Revenue preview", f"${_rev_prev:,.0f}",
+                          help=f"{_yld_prev:,.1f} lbs × ${gv(f'{p}hemp_price', _mid_hp):.2f}/lb")
+                _rev_href3 = HEMP_REF.get(_hpm, {})
+                if _rev_href3.get("net") and acres > 0:
+                    st.caption(f"KY 2021 ref net return for {acres:.1f} acres: "
+                               f"**${_rev_href3['net'] * acres:,.0f}**")
+        else:  # Cannabis MJ
+            op  = st.session_state.get(f"{p}op_type", "Outdoor")
+            pt  = st.session_state.get(f"{p}plant_type", "Photoperiod")
+            ref = NYS_PRICES.get(op, NYS_PRICES["Outdoor"]).get(pt, NYS_PRICES["Outdoor"]["Photoperiod"])
 
-        st.markdown(f"**NYS wholesale price reference — {op} {pt} (2024–25):**")
-        rc1, rc2, rc3 = st.columns(3)
-        rc1.caption(f"🌸 Flower: ${ref['flower'][0]:,}–${ref['flower'][1]:,} /lb")
-        rc2.caption(f"🚬 Pre-rolls: ${ref['preroll'][0]:,}–${ref['preroll'][1]:,} /lb")
-        rc3.caption(f"⚗️ Extraction: ${ref['extraction'][0]:,}–${ref['extraction'][1]:,} /lb")
-        st.divider()
+            st.markdown(f"**NYS wholesale price reference — {op} {pt} (2024–25):**")
+            rc1, rc2, rc3 = st.columns(3)
+            rc1.caption(f"🌸 Flower: ${ref['flower'][0]:,}–${ref['flower'][1]:,} /lb")
+            rc2.caption(f"🚬 Pre-rolls: ${ref['preroll'][0]:,}–${ref['preroll'][1]:,} /lb")
+            rc3.caption(f"⚗️ Extraction: ${ref['extraction'][0]:,}–${ref['extraction'][1]:,} /lb")
+            st.divider()
 
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("**% of dry yield per product stream (must sum to 100%)**")
-            flower_pct     = st.number_input("% → Whole Flower",   0.0, 100.0, 60.0, 5.0, key=f"{p}fl_pct")
-            preroll_pct    = st.number_input("% → Pre-rolls",      0.0, 100.0, 25.0, 5.0, key=f"{p}pr_pct")
-            extraction_pct = st.number_input("% → Extraction/Biomass", 0.0, 100.0, 15.0, 5.0, key=f"{p}ex_pct")
-            total_pct = flower_pct + preroll_pct + extraction_pct
-            if abs(total_pct - 100) > 0.5:
-                st.warning(f"⚠️ Sum = {total_pct:.0f}% — adjust to reach 100%")
-            else:
-                st.success("✅ Sums to 100%")
-        with c2:
-            st.markdown("**Wholesale price per lb**")
-            mid_fl = (ref["flower"][0]    + ref["flower"][1])    / 2
-            mid_pr = (ref["preroll"][0]   + ref["preroll"][1])   / 2
-            mid_ex = (ref["extraction"][0] + ref["extraction"][1]) / 2
-            st.number_input("Flower price ($/lb)",     0.0, step=25.0, value=float(mid_fl), key=f"{p}fl_price")
-            st.number_input("Pre-roll price ($/lb)",   0.0, step=25.0, value=float(mid_pr), key=f"{p}pr_price")
-            st.number_input("Extraction price ($/lb)", 0.0, step=25.0, value=float(mid_ex), key=f"{p}ex_price")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**% of dry yield per product stream (must sum to 100%)**")
+                flower_pct     = st.number_input("% → Whole Flower",        0.0, 100.0, 60.0, 5.0, key=f"{p}fl_pct")
+                preroll_pct    = st.number_input("% → Pre-rolls",           0.0, 100.0, 25.0, 5.0, key=f"{p}pr_pct")
+                extraction_pct = st.number_input("% → Extraction/Biomass",  0.0, 100.0, 15.0, 5.0, key=f"{p}ex_pct")
+                total_pct = flower_pct + preroll_pct + extraction_pct
+                if abs(total_pct - 100) > 0.5:
+                    st.warning(f"⚠️ Sum = {total_pct:.0f}% — adjust to reach 100%")
+                else:
+                    st.success("✅ Sums to 100%")
+            with c2:
+                st.markdown("**Wholesale price per lb**")
+                mid_fl = (ref["flower"][0]    + ref["flower"][1])    / 2
+                mid_pr = (ref["preroll"][0]   + ref["preroll"][1])   / 2
+                mid_ex = (ref["extraction"][0] + ref["extraction"][1]) / 2
+                st.number_input("Flower price ($/lb)",     0.0, step=25.0, value=float(mid_fl), key=f"{p}fl_price")
+                st.number_input("Pre-roll price ($/lb)",   0.0, step=25.0, value=float(mid_pr), key=f"{p}pr_price")
+                st.number_input("Extraction price ($/lb)", 0.0, step=25.0, value=float(mid_ex), key=f"{p}ex_price")
 
-        # Live preview
-        ty_prev = gv(f"{p}n_plants") * gv(f"{p}yield_pp") * int(gv(f"{p}cycles", 1))
-        rev_prev = (
-            ty_prev * gv(f"{p}fl_pct") / 100 * gv(f"{p}fl_price") +
-            ty_prev * gv(f"{p}pr_pct") / 100 * gv(f"{p}pr_price") +
-            ty_prev * gv(f"{p}ex_pct") / 100 * gv(f"{p}ex_price")
-        )
-        if rev_prev > 0:
-            st.metric("Revenue preview", f"${rev_prev:,.0f}",
-                      help="Preliminary — run full analysis in the Summary tab")
+            ty_prev = gv(f"{p}n_plants") * gv(f"{p}yield_pp") * int(gv(f"{p}cycles", 1))
+            rev_prev = (
+                ty_prev * gv(f"{p}fl_pct") / 100 * gv(f"{p}fl_price") +
+                ty_prev * gv(f"{p}pr_pct") / 100 * gv(f"{p}pr_price") +
+                ty_prev * gv(f"{p}ex_pct") / 100 * gv(f"{p}ex_price")
+            )
+            if rev_prev > 0:
+                st.metric("Revenue preview", f"${rev_prev:,.0f}",
+                          help="Preliminary — run full analysis in the Summary tab")
 
 
 def compute_scenario(i):
     """Collect all inputs for scenario i and return computed results."""
     p = f"e{i}_"
 
-    area    = gv(f"{p}area_sqft")
-    cycles  = int(gv(f"{p}cycles", 1))
-    acres   = gv(f"{p}acres") or (area / 43560)
-    n_pl    = gv(f"{p}n_plants")
-    y_pp    = gv(f"{p}yield_pp")
-    t_yield = n_pl * y_pp * cycles
+    area   = gv(f"{p}area_sqft")
+    cycles = int(gv(f"{p}cycles", 1))
+    acres  = gv(f"{p}acres") or (area / 43560)
 
-    wage       = gv(f"{p}wage", 20.0)
-    total_hrs  = sum(gv(f"{p}{s}") for _, s in LABOR_TASKS)
-    total_lbr  = wage * total_hrs
+    is_mj  = st.session_state.get(f"{p}crop_type", "Cannabis (MJ)") == "Cannabis (MJ)"
+    is_hemp = not is_mj
+    _hpm   = st.session_state.get(f"{p}hemp_prod_model", HEMP_PROD_MODELS[0])
+    _is_hemp_rowcrop  = is_hemp and _hpm in ["CBD Row Crop", "Grain Hemp", "Fiber Hemp"]
+    _is_plasticulture = _hpm == "CBD Flower (Plasticulture)"
 
-    vc_vals = {label: gv(f"{p}{s}") for label, s in VC_KEYS}
-    total_vc = sum(vc_vals.values()) + total_lbr
+    # ── Yield ─────────────────────────────────────────────────────────────
+    if _is_hemp_rowcrop:
+        t_yield = gv(f"{p}yield_per_acre") * acres * cycles
+    else:
+        t_yield = gv(f"{p}n_plants") * gv(f"{p}yield_pp") * cycles
 
-    is_mj     = st.session_state.get(f"{p}crop_type", "Cannabis (MJ)") == "Cannabis (MJ)"
-    excise_tax = gv(f"{p}vc_excise") if is_mj else 0.0
-    total_vc  += excise_tax
+    # ── Labor ─────────────────────────────────────────────────────────────
+    wage      = gv(f"{p}wage", 20.0)
+    total_hrs = sum(gv(f"{p}{s}") for _, s in LABOR_TASKS)
+    total_lbr = wage * total_hrs
 
-    fc_vals = {label: gv(f"{p}{s}") for label, s in FC_KEYS}
-    total_fc = sum(fc_vals.values())
+    # ── Variable Costs ────────────────────────────────────────────────────
+    if is_hemp:
+        _hemp_suf = [s for _, s in HEMP_VC_KEYS if s != "vc_interest_oc"]
+        # Zero out inapplicable line items
+        if not _is_plasticulture:
+            for _s in ["vc_plastic_mulch", "vc_plastic_removal"]:
+                if f"{p}{_s}" not in st.session_state:
+                    st.session_state[f"{p}{_s}"] = 0.0
+        if _is_hemp_rowcrop:
+            if f"{p}vc_transplants" not in st.session_state:
+                st.session_state[f"{p}vc_transplants"] = 0.0
+        vc_vals = {label: gv(f"{p}{s}") for label, s in HEMP_VC_KEYS if s != "vc_interest_oc"}
+        ioc = st.session_state.get(f"{p}vc_interest_oc_calc", 0.0)
+        vc_vals["Interest on Operating Capital"] = ioc
+        total_vc   = sum(vc_vals.values()) + total_lbr
+        excise_tax = 0.0
+    else:
+        vc_vals    = {label: gv(f"{p}{s}") for label, s in VC_KEYS}
+        excise_tax = gv(f"{p}vc_excise") if is_mj else 0.0
+        total_vc   = sum(vc_vals.values()) + total_lbr + excise_tax
 
+    fc_vals     = {label: gv(f"{p}{s}") for label, s in FC_KEYS}
+    total_fc    = sum(fc_vals.values())
     total_costs = total_vc + total_fc
 
-    fl_rev = t_yield * gv(f"{p}fl_pct") / 100 * gv(f"{p}fl_price")
-    pr_rev = t_yield * gv(f"{p}pr_pct") / 100 * gv(f"{p}pr_price")
-    ex_rev = t_yield * gv(f"{p}ex_pct") / 100 * gv(f"{p}ex_price")
-    total_rev = fl_rev + pr_rev + ex_rev
+    # ── Revenue ───────────────────────────────────────────────────────────
+    if is_hemp:
+        _hpinfo   = HEMP_PRICES.get(_hpm, list(HEMP_PRICES.values())[0])
+        _mid_hp   = (_hpinfo["low"] + _hpinfo["high"]) / 2
+        hemp_price = gv(f"{p}hemp_price", _mid_hp)
+        total_rev  = t_yield * hemp_price
+        wt_price   = hemp_price
+        rev_breakdown = {_hpinfo["label"]: total_rev}
+    else:
+        fl_rev  = t_yield * gv(f"{p}fl_pct") / 100 * gv(f"{p}fl_price")
+        pr_rev  = t_yield * gv(f"{p}pr_pct") / 100 * gv(f"{p}pr_price")
+        ex_rev  = t_yield * gv(f"{p}ex_pct") / 100 * gv(f"{p}ex_price")
+        total_rev = fl_rev + pr_rev + ex_rev
+        wt_price  = total_rev / t_yield if t_yield > 0 else 0
+        rev_breakdown = {"Flower": fl_rev, "Pre-rolls": pr_rev, "Extraction": ex_rev}
 
-    wt_price  = total_rev / t_yield if t_yield > 0 else 0
     bep_price = total_costs / t_yield if t_yield > 0 else 0
     bep_yield = total_costs / wt_price if wt_price > 0 else 0
 
-    # 280E analysis (MJ only)
-    # Federal: only COGS (variable costs) deductible
-    # NYS: all expenses deductible (decoupled from 280E since 1/1/2023)
+    # ── Tax Analysis (§280E — MJ only) ────────────────────────────────────
     fed_taxable_income = total_rev - total_vc if is_mj else total_rev - total_costs
     nys_taxable_income = total_rev - total_costs
-    fed_tax_est        = max(fed_taxable_income * 0.24, 0) if is_mj else max(fed_taxable_income * 0.24, 0)
+    fed_tax_est        = max(fed_taxable_income * 0.24, 0)
     nys_tax_est        = max(nys_taxable_income * 0.0685, 0)
     e280_penalty       = fed_tax_est - max((total_rev - total_costs) * 0.24, 0) if is_mj else 0
 
     return {
         "name":               st.session_state.get(f"{p}name", f"Scenario {i+1}"),
         "crop_type":          st.session_state.get(f"{p}crop_type", "Cannabis (MJ)"),
+        "hemp_prod_model":    _hpm if is_hemp else None,
         "op_type":            st.session_state.get(f"{p}op_type", "Outdoor"),
         "plant_type":         st.session_state.get(f"{p}plant_type", "Photoperiod"),
         "area_sqft":          area,
@@ -422,7 +703,7 @@ def compute_scenario(i):
         "fc_breakdown":       fc_vals,
         "total_fc":           total_fc,
         "total_costs":        total_costs,
-        "rev_breakdown":      {"Flower": fl_rev, "Pre-rolls": pr_rev, "Extraction": ex_rev},
+        "rev_breakdown":      rev_breakdown,
         "total_revenue":      total_rev,
         "gross_margin":       total_rev - total_vc,
         "net_return":         total_rev - total_costs,
@@ -454,7 +735,7 @@ def render_summary(results):
         sign = "+" if r["net_return"] >= 0 else ""
         kpi_rows.append({
             "Scenario":          r["name"],
-            "Operation":         f"{r['op_type']} {r['plant_type']}",
+            "Operation":         r["hemp_prod_model"] if r.get("hemp_prod_model") else f"{r['op_type']} {r['plant_type']}",
             "Total Yield (lbs)": f"{r['total_yield_lbs']:,.1f}",
             "Total Revenue":     f"${r['total_revenue']:,.0f}",
             "Variable Costs":    f"${r['total_vc']:,.0f}",
@@ -609,12 +890,20 @@ def render_summary(results):
     if len(results) > 0 and any(r["total_revenue"] > 0 for r in results):
         st.divider()
         st.markdown("### 🌸 Revenue by Product Stream")
+        _stream_colors = {
+            "Flower": "#4CAF50", "Pre-rolls": "#FF9800", "Extraction": "#9C27B0",
+            "Dry Floral Material (DFM)": "#66BB6A",
+            "CBD Biomass / Dry Matter": "#FFA726",
+            "Hemp Grain": "#FFCA28",
+            "Hemp Fiber": "#8D6E63",
+        }
+        _all_streams = sorted({s for r in results for s in r["rev_breakdown"].keys()})
         fig_rev = go.Figure()
-        for stream, color in [("Flower", "#4CAF50"), ("Pre-rolls", "#FF9800"), ("Extraction", "#9C27B0")]:
+        for stream in _all_streams:
             fig_rev.add_trace(go.Bar(
                 name=stream, x=names,
                 y=[r["rev_breakdown"].get(stream, 0) for r in results],
-                marker_color=color,
+                marker_color=_stream_colors.get(stream, "#90A4AE"),
             ))
         fig_rev.update_layout(barmode="stack", yaxis_tickprefix="$",
                               yaxis_title="Revenue ($)", height=360,
