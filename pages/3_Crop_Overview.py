@@ -80,8 +80,11 @@ def build_preharvest_excel(batches_dict):
         "# Plants Outdoors","# Plants Hoop House","# Plants Greenhouse","# Plants Indoors",
         "Germination Rate (%)","First Flower Date","Days in Ground",
         "Disease Presence","Disease Name","Disease Severity","Disease Date First Seen",
-        "% White Trichomes","% Clear Trichomes","% Amber Trichomes","Biomass Weight (kg)",
-        "THC (%)","CBD (%)","Other Cannabinoids","B-Myrcene (%)","B-Caryophyllene (%)",
+        "% White Trichomes","% Clear Trichomes","% Amber Trichomes",
+        "A Buds (%)","B Buds (%)","C Buds / Popcorn (%)",
+        "Flower Weight (kg)","Trim Weight (kg)","Waste Weight (kg)","Biomass Weight (kg)",
+        "THC (%)","CBD (%)","Other Cannabinoids",
+        "B-Myrcene (%)","B-Caryophyllene (%)","Limonene (%)","A-Humulene (%)","B-Pinene (%)","Linalool (%)",
     ])
     for bn, b in batches_dict.items():
         d = b.get("data", {})
@@ -97,10 +100,15 @@ def build_preharvest_excel(batches_dict):
             d.get("disease_presence",""), d.get("disease_name",""),
             d.get("disease_severity",""), d.get("disease_date",""),
             d.get("pct_white_trichomes") or "", d.get("pct_clear_trichomes") or "",
-            d.get("pct_amber_trichomes") or "", d.get("biomass_weight_kg") or "",
+            d.get("pct_amber_trichomes") or "",
+            d.get("a_buds_pct") or "", d.get("b_buds_pct") or "", d.get("c_buds_pct") or "",
+            d.get("flower_weight_kg") or "", d.get("trim_weight_kg") or "",
+            d.get("waste_weight_kg") or "", d.get("biomass_weight_kg") or "",
             d.get("thc_pct") or "", d.get("cbd_pct") or "",
             d.get("other_cannabinoids",""),
             d.get("b_myrcene_pct") or "", d.get("b_caryophyllene_pct") or "",
+            d.get("limonene_pct") or "", d.get("a_humulene_pct") or "",
+            d.get("b_pinene_pct") or "", d.get("linalool_pct") or "",
         ])
     ws2 = wb.create_sheet("2_Individual_Plants")
     ws2.append(["Batch Number","Plant Number","Plant ID / Tag","Environment","Growing Media",
@@ -197,7 +205,11 @@ def build_postharvest_excel(batches_dict):
                 "Total Wet Weight (g)","Harvest Waste (g)",
                 "Bucking Date","Bucked Weight (g)","Bucking Waste (g)",
                 "Drying Date","Dried Weight (g)","Drying Waste (g)","Dry Time (days)",
-                "Trim Date","Trimmed Flower (g)","Trim Weight (g)","Trim Waste (g)","Moisture Loss (%)"])
+                "Machine Trim Date","Machine Trimmed Flower (g)","Trim Generated (g)",
+                "Machine Trim Waste (g)","Floorbuds / Smalls (g)","Misc. Processing Loss (g)",
+                "Hand Trim Start Date","Hand Trimmed Flower (g)","Hand Trim Generated (g)",
+                "Hand Trim Waste (g)","Hand Trim End Date",
+                "Moisture Loss (%)"])
     for bid, b in batches_dict.items():
         d = b.get("data", {})
         wet = d.get("total_wet_weight_g") or 0; dry = d.get("dried_weight_g") or 0
@@ -206,7 +218,10 @@ def build_postharvest_excel(batches_dict):
             d.get("bucking_date",""), d.get("bucked_weight_g") or "", d.get("bucking_waste_g") or "",
             d.get("drying_date",""), dry or "", d.get("drying_waste_g") or "", d.get("dry_time_days") or "",
             d.get("trim_date",""), d.get("trimmed_flower_g") or "", d.get("trim_weight_g") or "",
-            d.get("trim_waste_g") or "", ml])
+            d.get("trim_waste_g") or "", d.get("floorbuds_g") or "", d.get("misc_processing_loss_g") or "",
+            d.get("hand_trim_start_date",""), d.get("hand_trim_flower_g") or "",
+            d.get("hand_trim_trim_g") or "", d.get("hand_trim_waste_g") or "",
+            d.get("hand_trim_end_date",""), ml])
     ws3 = wb.create_sheet("3_Curing")
     ws3.append(["Harvest Batch ID","Label","Date Into Cure Room","Flower Weight Entry (g)","Trim Weight Entry (g)"])
     for bid, b in batches_dict.items():
@@ -232,13 +247,13 @@ def build_postharvest_excel(batches_dict):
     ws5 = wb.create_sheet("5_Packaging_Inventory")
     ws5.append(["Harvest Batch ID","Date Packaged","Flower Available (g)",
                 "1g Units","Eighths (3.5g)","Quarters (7g)","Half Oz (14g)","1 Oz (28g)",
-                "Pre-Rolls (units)","Other SKU","End of Stock Date"])
+                "Pre-Rolls (units)","Other SKU","Packaging Waste (g)","End of Stock Date"])
     for bid, b in batches_dict.items():
         d = b.get("data", {})
         ws5.append([bid, d.get("packaging_date",""), d.get("flower_available_for_packaging_g") or "",
             d.get("pkg_1g") or "", d.get("pkg_eighth") or "", d.get("pkg_quarter") or "",
             d.get("pkg_half") or "", d.get("pkg_oz") or "", d.get("pkg_prerolls") or "",
-            d.get("pkg_other",""), d.get("end_stock_date","")])
+            d.get("pkg_other",""), d.get("packaging_waste_g") or "", d.get("end_stock_date","")])
     ws6 = wb.create_sheet("6_Sales_Tracking")
     ws6.append(["Harvest Batch ID","Trim Sold (g)","Trim Price ($/g)","Trim Revenue ($)",
                 "Popcorn Sold (g)","Popcorn Price ($/g)","Other Byproduct",
@@ -250,6 +265,12 @@ def build_postharvest_excel(batches_dict):
             d.get("popcorn_price_per_g") or "", d.get("other_byproduct",""),
             d.get("buyer_name",""), d.get("sale_date",""),
             d.get("invoice_num",""), d.get("sale_notes","")])
+    ws7b = wb.create_sheet("7_Batch_Feedback")
+    ws7b.append(["Harvest Batch ID","Positives","Negatives","Neutral / Observations","Conclusion"])
+    for bid, b in batches_dict.items():
+        d = b.get("data", {})
+        ws7b.append([bid, d.get("feedback_positive",""), d.get("feedback_negative",""),
+                     d.get("feedback_neutral",""), d.get("feedback_conclusion","")])
     buf = io.BytesIO(); wb.save(buf); buf.seek(0)
     return buf.getvalue()
 
@@ -672,6 +693,38 @@ with outer_tabs[0]:
             ph_bd["biomass_weight_kg"] = st.number_input("Total Biomass Weight (kg)", 0.0, step=0.1,
                 value=float(ph_bd.get("biomass_weight_kg") or 0.0), key=f"ph_{selected_batch}_biomass")
         st.divider()
+        st.markdown("#### Bud Grade Distribution")
+        st.caption("A = top-shelf flower, B = mid-grade, C = popcorn / larf. Values should sum to 100%.")
+        bg1, bg2, bg3 = st.columns(3)
+        with bg1:
+            ph_bd["a_buds_pct"] = st.number_input("A Buds (%)", 0.0, 100.0, step=1.0,
+                value=float(ph_bd.get("a_buds_pct") or 0.0), key=f"ph_{selected_batch}_a_buds")
+        with bg2:
+            ph_bd["b_buds_pct"] = st.number_input("B Buds (%)", 0.0, 100.0, step=1.0,
+                value=float(ph_bd.get("b_buds_pct") or 0.0), key=f"ph_{selected_batch}_b_buds")
+        with bg3:
+            ph_bd["c_buds_pct"] = st.number_input("C Buds / Popcorn (%)", 0.0, 100.0, step=1.0,
+                value=float(ph_bd.get("c_buds_pct") or 0.0), key=f"ph_{selected_batch}_c_buds")
+        _bud_sum = (ph_bd.get("a_buds_pct") or 0) + (ph_bd.get("b_buds_pct") or 0) + (ph_bd.get("c_buds_pct") or 0)
+        if _bud_sum > 0:
+            if abs(_bud_sum - 100) > 0.5:
+                st.warning(f"⚠️ Bud grade sum = {_bud_sum:.0f}% — adjust to 100%")
+            else:
+                st.success("✅ Bud grades sum to 100%")
+        st.divider()
+        st.markdown("#### Harvest Weights by Product Type")
+        st.caption("Weight at harvest in kg. Used for batch-level yield tracking (source: Data Collection Master Template).")
+        hw1, hw2, hw3 = st.columns(3)
+        with hw1:
+            ph_bd["flower_weight_kg"] = st.number_input("Flower Weight (kg)", 0.0, step=0.01,
+                value=float(ph_bd.get("flower_weight_kg") or 0.0), key=f"ph_{selected_batch}_fl_kg", format="%.3f")
+        with hw2:
+            ph_bd["trim_weight_kg"] = st.number_input("Trim Weight (kg)", 0.0, step=0.01,
+                value=float(ph_bd.get("trim_weight_kg") or 0.0), key=f"ph_{selected_batch}_tr_kg", format="%.3f")
+        with hw3:
+            ph_bd["waste_weight_kg"] = st.number_input("Waste Weight (kg)", 0.0, step=0.01,
+                value=float(ph_bd.get("waste_weight_kg") or 0.0), key=f"ph_{selected_batch}_wst_kg", format="%.3f")
+        st.divider()
         st.markdown("#### Lab Results — Cannabinoids & Terpenes")
         st.caption("Enter values from COA. Full COA attachment goes in Post-Harvest → Quality Testing tab.")
         lr1, lr2, lr3 = st.columns(3)
@@ -685,15 +738,29 @@ with outer_tabs[0]:
             ph_bd["other_cannabinoids"] = st.text_input("Other Cannabinoids (notes)",
                 value=ph_bd.get("other_cannabinoids",""), placeholder="CBG: 0.5%, CBN: 0.2%…",
                 key=f"ph_{selected_batch}_other_cann")
-        lr4, lr5 = st.columns(2)
-        with lr4:
+        st.caption("**Terpenes (% from COA):**")
+        tp1, tp2, tp3 = st.columns(3)
+        with tp1:
             ph_bd["b_myrcene_pct"] = st.number_input("β-Myrcene (%)", 0.0, 100.0, step=0.001,
                 value=float(ph_bd.get("b_myrcene_pct") or 0.0),
                 key=f"ph_{selected_batch}_myrcene", format="%.3f")
-        with lr5:
+            ph_bd["limonene_pct"] = st.number_input("Limonene (%)", 0.0, 100.0, step=0.001,
+                value=float(ph_bd.get("limonene_pct") or 0.0),
+                key=f"ph_{selected_batch}_limonene", format="%.3f")
+        with tp2:
             ph_bd["b_caryophyllene_pct"] = st.number_input("β-Caryophyllene (%)", 0.0, 100.0, step=0.001,
                 value=float(ph_bd.get("b_caryophyllene_pct") or 0.0),
                 key=f"ph_{selected_batch}_caryoph", format="%.3f")
+            ph_bd["a_humulene_pct"] = st.number_input("α-Humulene (%)", 0.0, 100.0, step=0.001,
+                value=float(ph_bd.get("a_humulene_pct") or 0.0),
+                key=f"ph_{selected_batch}_humulene", format="%.3f")
+        with tp3:
+            ph_bd["b_pinene_pct"] = st.number_input("β-Pinene (%)", 0.0, 100.0, step=0.001,
+                value=float(ph_bd.get("b_pinene_pct") or 0.0),
+                key=f"ph_{selected_batch}_pinene", format="%.3f")
+            ph_bd["linalool_pct"] = st.number_input("Linalool (%)", 0.0, 100.0, step=0.001,
+                value=float(ph_bd.get("linalool_pct") or 0.0),
+                key=f"ph_{selected_batch}_linalool", format="%.3f")
 
     # ── TAB 1.2: Individual Plants ─────────────────────────────────────────
     with tabs[1]:
@@ -702,17 +769,35 @@ with outer_tabs[0]:
         _plant_schema = {
             "Plant Number": pd.Series(dtype="Int64"),
             "Plant ID / Tag": pd.Series(dtype="str"),
+            "Strain Name": pd.Series(dtype="str"),
             "Environment": pd.Series(dtype="str"),
             "Growing Media": pd.Series(dtype="str"),
+            "Flowering Strategy": pd.Series(dtype="str"),
             "Seed Planting Date": pd.Series(dtype="str"),
             "Transplanting Date": pd.Series(dtype="str"),
+            "Harvest Date": pd.Series(dtype="str"),
+            "Days in Ground": pd.Series(dtype="Int64"),
+            "Day of First Flower": pd.Series(dtype="str"),
             "Topped (Y/N)": pd.Series(dtype="str"),
             "Pruned (Y/N)": pd.Series(dtype="str"),
             "Trellised (Y/N)": pd.Series(dtype="str"),
+            "Cropping (Y/N)": pd.Series(dtype="str"),
+            "Lollipopping (Y/N)": pd.Series(dtype="str"),
+            "Other Plant Modifications": pd.Series(dtype="str"),
+            "Disease Present (Y/N)": pd.Series(dtype="str"),
+            "Disease Name": pd.Series(dtype="str"),
+            "Disease Date First Seen": pd.Series(dtype="str"),
             "Height at Harvest (cm)": pd.Series(dtype="Float64"),
             "Stem Width (mm)": pd.Series(dtype="Float64"),
             "Node Count": pd.Series(dtype="Int64"),
-            "Bud Size": pd.Series(dtype="str"),
+            "Biggest Bud Size (cm)": pd.Series(dtype="Float64"),
+            "Bud Grade": pd.Series(dtype="str"),
+            "Wet Weight at Harvest (kg)": pd.Series(dtype="Float64"),
+            "Dry Weight (kg)": pd.Series(dtype="Float64"),
+            "Bucked Weight (kg)": pd.Series(dtype="Float64"),
+            "Waste Weight (kg)": pd.Series(dtype="Float64"),
+            "Other Info 1 (e.g. tag color)": pd.Series(dtype="str"),
+            "Other Info 2 (e.g. row location)": pd.Series(dtype="str"),
         }
         existing_pl = ph_batch.get("plants_df")
         default_pl = pd.DataFrame(_plant_schema) if (existing_pl is None or existing_pl.empty) else existing_pl
@@ -722,13 +807,24 @@ with outer_tabs[0]:
                 "Plant Number": st.column_config.NumberColumn("Plant #", min_value=1, step=1),
                 "Environment": st.column_config.SelectboxColumn("Environment",
                     options=["Outdoors","Hoop House","Greenhouse","Indoors","Aquaponics","Other"]),
+                "Flowering Strategy": st.column_config.SelectboxColumn("Flowering",
+                    options=["Photoperiod","Autoflower","Quick (feminized photo)"]),
                 "Topped (Y/N)": st.column_config.SelectboxColumn("Topped", options=["Y","N"]),
                 "Pruned (Y/N)": st.column_config.SelectboxColumn("Pruned", options=["Y","N"]),
                 "Trellised (Y/N)": st.column_config.SelectboxColumn("Trellised", options=["Y","N"]),
+                "Cropping (Y/N)": st.column_config.SelectboxColumn("Cropping", options=["Y","N"]),
+                "Lollipopping (Y/N)": st.column_config.SelectboxColumn("Lollipop", options=["Y","N"]),
+                "Disease Present (Y/N)": st.column_config.SelectboxColumn("Disease", options=["Y","N"]),
                 "Height at Harvest (cm)": st.column_config.NumberColumn("Height (cm)", min_value=0.0, format="%.1f"),
                 "Stem Width (mm)": st.column_config.NumberColumn("Stem (mm)", min_value=0.0, format="%.1f"),
                 "Node Count": st.column_config.NumberColumn("Nodes", min_value=0, step=1),
-                "Bud Size": st.column_config.SelectboxColumn("Bud Size", options=["S","M","L","XL"]),
+                "Days in Ground": st.column_config.NumberColumn("Days", min_value=0, step=1),
+                "Biggest Bud Size (cm)": st.column_config.NumberColumn("Bud Size (cm)", min_value=0.0, format="%.1f"),
+                "Bud Grade": st.column_config.SelectboxColumn("Grade", options=["A","B","C"]),
+                "Wet Weight at Harvest (kg)": st.column_config.NumberColumn("Wet Wt (kg)", min_value=0.0, format="%.3f"),
+                "Dry Weight (kg)": st.column_config.NumberColumn("Dry Wt (kg)", min_value=0.0, format="%.3f"),
+                "Bucked Weight (kg)": st.column_config.NumberColumn("Bucked (kg)", min_value=0.0, format="%.3f"),
+                "Waste Weight (kg)": st.column_config.NumberColumn("Waste (kg)", min_value=0.0, format="%.3f"),
             })
         st.session_state.preharvest_batches[selected_batch]["plants_df"] = edited_pl
         if not edited_pl.empty:
@@ -956,6 +1052,7 @@ with outer_tabs[1]:
         "🔬 Quality Testing",
         "📦 Packaging",
         "💵 Sales Tracking",
+        "📝 Batch Feedback",
     ])
 
     # ── TAB 2.1: Harvest Batch Log ─────────────────────────────────────────
@@ -1023,20 +1120,45 @@ with outer_tabs[1]:
         with dr4:
             pos_bd["dry_time_days"] = st.number_input("Dry Time (days)", min_value=0, step=1,
                 value=int(pos_bd.get("dry_time_days") or 0), key=f"pos_{selected_batch}_dry_days")
-        st.divider(); st.markdown("**Trimming**")
+        st.divider(); st.markdown("**Machine Trim**")
+        st.caption("From CannabisIndustryPost-HarvestMasterLog — Machine Trim section.")
         tr1, tr2, tr3, tr4 = st.columns(4)
         with tr1:
-            pos_bd["trim_date"] = st.text_input("Trim Date (mm/dd/yyyy)",
+            pos_bd["trim_date"] = st.text_input("Machine Trim Date (mm/dd/yyyy)",
                 value=pos_bd.get("trim_date",""), key=f"pos_{selected_batch}_trim_date")
         with tr2:
-            pos_bd["trimmed_flower_g"] = st.number_input("Trimmed Flower (g)", min_value=0.0, step=10.0,
+            pos_bd["trimmed_flower_g"] = st.number_input("Machine Trimmed Flower (g)", min_value=0.0, step=10.0,
                 value=float(pos_bd.get("trimmed_flower_g") or 0.0), key=f"pos_{selected_batch}_trim_fl")
         with tr3:
-            pos_bd["trim_weight_g"] = st.number_input("Trim Weight (g)", min_value=0.0, step=1.0,
+            pos_bd["trim_weight_g"] = st.number_input("Trim Generated (g)", min_value=0.0, step=1.0,
                 value=float(pos_bd.get("trim_weight_g") or 0.0), key=f"pos_{selected_batch}_trim_wt")
         with tr4:
-            pos_bd["trim_waste_g"] = st.number_input("Trim Waste (g)", min_value=0.0, step=1.0,
+            pos_bd["trim_waste_g"] = st.number_input("Machine Trim Waste (g)", min_value=0.0, step=1.0,
                 value=float(pos_bd.get("trim_waste_g") or 0.0), key=f"pos_{selected_batch}_trim_waste")
+        mtr1, mtr2 = st.columns(2)
+        with mtr1:
+            pos_bd["floorbuds_g"] = st.number_input("Floorbuds / Smalls (g)", min_value=0.0, step=1.0,
+                value=float(pos_bd.get("floorbuds_g") or 0.0), key=f"pos_{selected_batch}_floorbuds",
+                help="Small buds that fall during machine trim — track separately for quality grading")
+        with mtr2:
+            pos_bd["misc_processing_loss_g"] = st.number_input("Total Misc. Processing Loss (g)", min_value=0.0, step=1.0,
+                value=float(pos_bd.get("misc_processing_loss_g") or 0.0), key=f"pos_{selected_batch}_misc_loss",
+                help="Any unaccounted loss during machine trim processing")
+        st.divider(); st.markdown("**Hand Trim**")
+        st.caption("Track hand trim separately if applicable.")
+        ht1, ht2 = st.columns(2)
+        with ht1:
+            pos_bd["hand_trim_start_date"] = st.text_input("Hand Trim Start Date (mm/dd/yyyy)",
+                value=pos_bd.get("hand_trim_start_date",""), key=f"pos_{selected_batch}_ht_start")
+            pos_bd["hand_trim_flower_g"] = st.number_input("Hand Trimmed Flower (g)", min_value=0.0, step=10.0,
+                value=float(pos_bd.get("hand_trim_flower_g") or 0.0), key=f"pos_{selected_batch}_ht_fl")
+            pos_bd["hand_trim_trim_g"] = st.number_input("Hand Trim Generated (g)", min_value=0.0, step=1.0,
+                value=float(pos_bd.get("hand_trim_trim_g") or 0.0), key=f"pos_{selected_batch}_ht_trim")
+        with ht2:
+            pos_bd["hand_trim_end_date"] = st.text_input("Hand Trim End Date (mm/dd/yyyy)",
+                value=pos_bd.get("hand_trim_end_date",""), key=f"pos_{selected_batch}_ht_end")
+            pos_bd["hand_trim_waste_g"] = st.number_input("Hand Trim Waste (g)", min_value=0.0, step=1.0,
+                value=float(pos_bd.get("hand_trim_waste_g") or 0.0), key=f"pos_{selected_batch}_ht_waste")
         wet = pos_bd.get("total_wet_weight_g") or 0
         dried = pos_bd.get("dried_weight_g") or 0
         trimmed = pos_bd.get("trimmed_flower_g") or 0
@@ -1174,8 +1296,14 @@ with outer_tabs[1]:
                 value=int(pos_bd.get("pkg_prerolls") or 0), key=f"pos_{selected_batch}_pkg_pr")
         pos_bd["pkg_other"] = st.text_input("Other SKU — describe",
             value=pos_bd.get("pkg_other",""), key=f"pos_{selected_batch}_pkg_other")
-        pos_bd["end_stock_date"] = st.text_input("End of Stock Date (mm/dd/yyyy)",
-            value=pos_bd.get("end_stock_date",""), key=f"pos_{selected_batch}_end_stock")
+        pkg_w1, pkg_w2 = st.columns(2)
+        with pkg_w1:
+            pos_bd["packaging_waste_g"] = st.number_input("Packaging Waste (g)", min_value=0.0, step=0.1,
+                value=float(pos_bd.get("packaging_waste_g") or 0.0), key=f"pos_{selected_batch}_pkg_waste",
+                help="Any flower lost during packaging process")
+        with pkg_w2:
+            pos_bd["end_stock_date"] = st.text_input("End of Stock Date (mm/dd/yyyy)",
+                value=pos_bd.get("end_stock_date",""), key=f"pos_{selected_batch}_end_stock")
         total_packaged_g = (
             (pos_bd.get("pkg_1g") or 0) * 1 +
             (pos_bd.get("pkg_eighth") or 0) * 3.5 +
@@ -1233,6 +1361,45 @@ with outer_tabs[1]:
                 value=pos_bd.get("invoice_num",""), key=f"pos_{selected_batch}_invoice")
         pos_bd["sale_notes"] = st.text_area("Notes", value=pos_bd.get("sale_notes",""),
             key=f"pos_{selected_batch}_sale_notes", height=60)
+
+    # ── TAB 2.7: Batch Feedback ────────────────────────────────────────────
+    with pos_tabs[6]:
+        st.markdown("#### Batch Feedback Summary")
+        st.caption(
+            "Record your team's qualitative assessment for this batch. "
+            "Source: CannabisIndustryPost-HarvestMasterLog — Summary Feedback section."
+        )
+        fb1, fb2 = st.columns(2)
+        with fb1:
+            pos_bd["feedback_positive"] = st.text_area(
+                "✅ Positives — what went well?",
+                value=pos_bd.get("feedback_positive",""),
+                placeholder="e.g. High yield, excellent trichome development, no disease issues…",
+                key=f"pos_{selected_batch}_fb_pos", height=120)
+            pos_bd["feedback_negative"] = st.text_area(
+                "❌ Negatives — what went wrong?",
+                value=pos_bd.get("feedback_negative",""),
+                placeholder="e.g. Irrigation failure in week 4, high trim-to-flower ratio…",
+                key=f"pos_{selected_batch}_fb_neg", height=120)
+        with fb2:
+            pos_bd["feedback_neutral"] = st.text_area(
+                "⚪ Neutral / Observations",
+                value=pos_bd.get("feedback_neutral",""),
+                placeholder="e.g. Weather was typical, no unusual inputs needed…",
+                key=f"pos_{selected_batch}_fb_neu", height=120)
+            fb_opts = ["—","Grow Again","Modify Before Growing Again","Do Not Grow Again"]
+            cur_fb = pos_bd.get("feedback_conclusion","—")
+            pos_bd["feedback_conclusion"] = st.selectbox(
+                "Conclusion",
+                fb_opts,
+                index=fb_opts.index(cur_fb) if cur_fb in fb_opts else 0,
+                key=f"pos_{selected_batch}_fb_conclusion")
+        if pos_bd.get("feedback_conclusion") == "Grow Again":
+            st.success("✅ Conclusion: Grow Again")
+        elif pos_bd.get("feedback_conclusion") == "Modify Before Growing Again":
+            st.warning("⚠️ Conclusion: Modify Before Growing Again")
+        elif pos_bd.get("feedback_conclusion") == "Do Not Grow Again":
+            st.error("❌ Conclusion: Do Not Grow Again")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 3 — BATCH DASHBOARD
@@ -1321,8 +1488,10 @@ with outer_tabs[2]:
         result_fmt = f"✅ {result}" if "Pass" in str(result) else (f"❌ {result}" if "Fail" in str(result) else result)
         st.markdown(f"**Harvest Date:** {pos_d.get('harvest_date') or '—'}")
         st.markdown(f"**COA Result:** {result_fmt}")
-        st.markdown(f"**THC:** {f\"{ph_d.get('thc_pct')}%\" if ph_d.get('thc_pct') else '—'}")
-        st.markdown(f"**CBD:** {f\"{ph_d.get('cbd_pct')}%\" if ph_d.get('cbd_pct') else '—'}")
+        _thc_str = (str(ph_d.get('thc_pct')) + "%") if ph_d.get('thc_pct') else "—"
+        _cbd_str = (str(ph_d.get('cbd_pct')) + "%") if ph_d.get('cbd_pct') else "—"
+        st.markdown(f"**THC:** {_thc_str}")
+        st.markdown(f"**CBD:** {_cbd_str}")
     with km_cols[3]:
         st.markdown('<p class="section-header">Revenue</p>', unsafe_allow_html=True)
         fl_rev = ph_d.get("flower_revenue") or 0
@@ -1578,3 +1747,11 @@ with dl_c2:
                     file_name="curing_log.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True)
+
+st.divider()
+st.caption(
+    "Built for NYS licensed cultivators · "
+    "Source: CannabisIndustryPost-HarvestMasterLog.xlsx (Post_Harvest_Log_, Cure_Room, Cure_Scheduling sheets) · "
+    "Data Collection Sheets_ Master Template.xlsx (REQUIRED_Data_Aggregate, Data_Collection_Individual, DoYouUse, EnergyAudit, Nutrient Log, PestControlApplicationLog, YieldAndSellingInformation sheets) · "
+    "Record-keeping only — not a compliance filing system."
+)
