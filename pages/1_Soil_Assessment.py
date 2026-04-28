@@ -152,10 +152,27 @@ with st.expander("📍 Step 1: Site Location & Soil Survey Lookup", expanded=Tru
         else:
             st.warning("⚠️ No NRCS data found. You can still enter data manually below.")
 
-        # Map
-        st.markdown("**📍 Field Location**")
-        st.map(pd.DataFrame({"lat": [soil["lat"]], "lon": [soil["lon"]]}),
-               zoom=13, use_container_width=True)
+        # Map — NY State overview with pin at geocoded address
+        import plotly.graph_objects as go
+        _fig_map = go.Figure(go.Scattermapbox(
+            lat=[soil["lat"]],
+            lon=[soil["lon"]],
+            mode="markers",
+            marker=go.scattermapbox.Marker(size=16, color="#e53935"),
+            text=[soil.get("matched_address", "Farm location")],
+            hoverinfo="text",
+        ))
+        _fig_map.update_layout(
+            mapbox=dict(
+                style="open-street-map",
+                center=dict(lat=42.9, lon=-75.7),
+                zoom=6,
+            ),
+            margin=dict(l=0, r=0, t=0, b=0),
+            height=420,
+        )
+        st.markdown("**📍 Field Location — New York State**")
+        st.plotly_chart(_fig_map, use_container_width=True)
 
     st.caption("Data from USDA NRCS SSURGO. For an interactive map visit "
                "[SoilWeb](https://casoilresource.lawr.ucdavis.edu/gmap/).")
