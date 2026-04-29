@@ -210,9 +210,9 @@ with c4:
 <div class="tool-card">
   <div class="card-preview" style="background:#f3e5f5;">📋</div>
   <div class="card-body">
-    <h3>📋 CIP Form Builder</h3>
+    <h3>📋 Community Impact Plan (CIP) Form Builder</h3>
     <ul>
-      <li>Guided form for all 7 NYS OCM CIP sections</li>
+      <li>Guided form for all 7 NYS OCM Community Impact Plan (CIP) sections</li>
       <li>Pre-filled narrative paragraphs from your answers</li>
       <li>Download as submission-ready Word (.docx)</li>
     </ul>
