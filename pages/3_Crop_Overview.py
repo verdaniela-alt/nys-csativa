@@ -612,8 +612,22 @@ with outer_tabs[0]:
         st.markdown("#### Growing Environment")
         c1, c2, c3 = st.columns(3)
         with c1:
-            ph_bd["cultivated_area_sqm"] = st.number_input("Cultivated Area (sqM)", min_value=0.0, step=10.0,
-                value=float(ph_bd.get("cultivated_area_sqm") or 0.0), key=f"ph_{selected_batch}_area")
+            _area_unit = st.radio("Area unit", ["sq ft", "sqM"], horizontal=True,
+                                  key=f"ph_{selected_batch}_area_unit")
+            if _area_unit == "sq ft":
+                _sqft_val = float(ph_bd.get("cultivated_area_sqft") or
+                                  (ph_bd.get("cultivated_area_sqm") or 0) * 10.7639)
+                _sqft_in = st.number_input("Cultivated Area (sq ft)", min_value=0.0, step=100.0,
+                    value=_sqft_val, key=f"ph_{selected_batch}_area_sqft")
+                ph_bd["cultivated_area_sqft"] = _sqft_in
+                ph_bd["cultivated_area_sqm"]  = round(_sqft_in / 10.7639, 2)
+            else:
+                _sqm_val = float(ph_bd.get("cultivated_area_sqm") or 0.0)
+                _sqm_in = st.number_input("Cultivated Area (sqM)", min_value=0.0, step=10.0,
+                    value=_sqm_val, key=f"ph_{selected_batch}_area_sqm")
+                ph_bd["cultivated_area_sqm"]  = _sqm_in
+                ph_bd["cultivated_area_sqft"] = round(_sqm_in * 10.7639, 2)
+            st.caption(f"≈ {ph_bd['cultivated_area_sqft']:,.0f} sq ft / {ph_bd['cultivated_area_sqm']:,.1f} sqM")
         with c2:
             ph_bd["growing_media"] = st.text_input("Growing Media", value=ph_bd.get("growing_media",""),
                 placeholder="Soil, Coco, Hydro…", key=f"ph_{selected_batch}_media")
