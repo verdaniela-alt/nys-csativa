@@ -14,214 +14,271 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-render_sidebar()
+render_sidebar(require_disclaimer=False)
 
-# ── Custom CSS ────────────────────────────────────────────────────────────────
+_accepted = st.session_state.get("disclaimer_accepted", False)
+
+# ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-.hero {
+/* ── Header ── */
+.site-header {
     background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 50%, #4a235a 100%);
     color: white;
-    padding: 40px 32px;
+    padding: 28px 32px 20px 32px;
     border-radius: 12px;
-    margin-bottom: 24px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
-.hero h1 { font-size: 2.4rem; margin-bottom: 8px; }
-.hero p  { font-size: 1.1rem; opacity: 0.9; }
-.tool-card {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
+.site-header h1 { font-size: 2rem; margin: 0 0 4px 0; }
+.site-header p  { font-size: 1rem; margin: 0; opacity: 0.88; }
+.newsletter-box {
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.4);
     border-radius: 10px;
-    padding: 24px;
-    height: 100%;
+    padding: 12px 18px;
+    text-align: center;
+    min-width: 200px;
+    color: white;
+    font-size: 0.9rem;
 }
-.tool-card h3 { margin-top: 0; }
-.badge {
-    display: inline-block;
-    padding: 2px 10px;
+.newsletter-box .nl-icon { font-size: 1.8rem; display: block; margin-bottom: 4px; }
+.newsletter-box .nl-label { font-weight: bold; display: block; }
+.newsletter-box .nl-sub { font-size: 0.78rem; opacity: 0.8; }
+
+/* ── Tool cards ── */
+.tool-card {
+    background: #ffffff;
+    border: 1.5px solid #dee2e6;
     border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    margin-left: 8px;
+    overflow: hidden;
+    height: 100%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    transition: box-shadow 0.2s;
 }
-.badge-live { background: #d4edda; color: #155724; }
-.badge-soon { background: #fff3cd; color: #856404; }
-.disclaimer-banner {
+.tool-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.13); }
+.card-preview {
+    width: 100%;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+}
+.card-body { padding: 16px 18px 12px 18px; }
+.card-body h3 { margin: 0 0 10px 0; font-size: 1.05rem; color: #1b5e20; }
+.card-body ul { margin: 0; padding-left: 18px; font-size: 0.88rem;
+                color: #444; line-height: 1.7; }
+
+/* ── Disclaimer ── */
+.disclaimer-box {
     background: #fff8e1;
     border: 2px solid #f9a825;
     border-left: 6px solid #e65100;
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 20px 24px;
-    margin-bottom: 24px;
-    font-size: 0.92rem;
+    font-size: 0.88rem;
     line-height: 1.6;
 }
-.disclaimer-banner h4 {
-    color: #b71c1c;
-    margin: 0 0 10px 0;
-    font-size: 1.05rem;
-}
-.disclaimer-banner b { color: #e65100; }
+.disclaimer-box h4 { color: #b71c1c; margin: 0 0 8px 0; font-size: 1rem; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Disclaimer & Data Sources ─────────────────────────────────────────────────
-st.markdown("""
-<div class="disclaimer-banner">
-<h4>⚠️ Important Disclaimer & Data Sources — Please Read Before Using These Tools</h4>
-<b>These tools are for educational and planning purposes only.</b> They do not constitute
-professional agronomic, financial, or legal advice. Results should be interpreted by a
-qualified professional before any action is taken. <b>The developers assume no responsibility
-or liability</b> for any decisions, crop losses, financial outcomes, or regulatory consequences
-arising from use of these tools.<br><br>
-Always consult a <b>certified crop advisor (CCA)</b>, licensed agronomist, or your local
-<b>Cornell Cooperative Extension</b> office before making large-scale amendment applications.
-Compliance with all applicable <b>NY State Cannabis Control Board (OCM)</b> regulations is
-the sole responsibility of the grower.<br><br>
-<b>Soil data:</b> USDA NRCS SSURGO via
-<a href="https://SDMDataAccess.nrcs.usda.gov" target="_blank">Soil Data Access REST API</a> ·
-Address geocoding by <a href="https://geocoding.geo.census.gov" target="_blank">US Census Geocoder</a> ·
-<b>Nutrient targets:</b> NY State extension frameworks, peer-reviewed cannabis agronomy literature,
-and CCA guidance for northeastern US production (Mehlich III equivalents) ·
-<b>Lab conversions (MM→M3):</b>
-<a href="http://nmsp.cals.cornell.edu/software/conv-tools.html" target="_blank">Cornell NMSP Conversion Tools</a>
-(Cornell Nutrient Management Spear Program, v7) ·
-<b>Lime recommendations:</b> Cornell NMSP Lime Guidelines Calculator v2.0 (March 2014) ·
-<b>Amendment rates:</b> representative ranges only — determine actual rates with a CCA.<br>
-<b>Hemp economics:</b> Bader (Univ. of Kentucky, 2021) hemp enterprise budgets ·
-<a href="https://hemp.mgcafe.uky.edu/marketing-economics" target="_blank">UK Hemp Marketing &amp; Economics Tool</a> ·
-<b>Cannabis economics:</b> Ruterbories, Hanchar &amp; Vergara (2025) · NYS OCM market reports &amp; Cannabis Benchmarks (2024–25).
-</div>
-""", unsafe_allow_html=True)
-
-# ── Hero banner ───────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="hero">
-  <h1>🌿 NYS Cannabis & Hemp Grower Tools</h1>
-  <p>Free, science-based tools for licensed New York State cannabis and hemp cultivators.<br>
-  Built on USDA NRCS soil data and NY State extension agronomic frameworks.</p>
-</div>
-""", unsafe_allow_html=True)
-
-# ── Tool cards ────────────────────────────────────────────────────────────────
-col1, col2 = st.columns(2, gap="large")
-
-with col1:
+# ── Header + Newsletter placeholder ──────────────────────────────────────────
+hcol1, hcol2 = st.columns([3, 1], gap="large")
+with hcol1:
     st.markdown("""
-<div class="tool-card">
-  <h3>🌱 Soil Assessment Tool <span class="badge badge-live">LIVE</span></h3>
-  <p>Enter your farm address and soil test results to get a complete fertility gap analysis
-  and amendment recommendations tailored for hemp or cannabis production.</p>
-  <ul>
-    <li>Auto-fills soil series, texture, drainage from USDA NRCS</li>
-    <li>Supports Mehlich III and Modified Morgan labs</li>
-    <li>Separate hemp and cannabis (MJ) targets</li>
-    <li>Specific amendment rates for NY conditions</li>
-    <li>Downloadable CSV report</li>
-  </ul>
+<div class="site-header">
+  <div>
+    <h1>🌿 NYS Cannabis & Hemp Grower Tools</h1>
+    <p>Free, science-based tools for licensed New York State cannabis and hemp cultivators.<br>
+    Built on USDA NRCS soil data and NY State extension agronomic frameworks.</p>
+  </div>
 </div>
 """, unsafe_allow_html=True)
-    st.write("")
-    if st.button("→ Open Soil Assessment Tool", use_container_width=True, type="primary"):
-        st.switch_page("pages/1_Soil_Assessment.py")
-
-with col2:
+with hcol2:
     st.markdown("""
-<div class="tool-card">
-  <h3>💰 Economics Tool <span class="badge badge-live">LIVE</span></h3>
-  <p>Enterprise budgets and profitability analysis for NY cannabis and hemp operations.</p>
-  <ul>
-    <li>Break-even yield and price calculator</li>
-    <li>Input cost estimator (seeds, amendments, labor, licensing)</li>
-    <li>NY wholesale price benchmarks</li>
-    <li>Scenario comparison: outdoor, greenhouse, indoor</li>
-    <li>Export to Excel</li>
-  </ul>
+<div style="height:12px"></div>
+<div class="newsletter-box">
+  <span class="nl-icon">✉️</span>
+  <span class="nl-label">Sign Up for Newsletter</span>
+  <span class="nl-sub">Coming soon</span>
 </div>
 """, unsafe_allow_html=True)
-    st.write("")
-    if st.button("→ Open Economics Tool", use_container_width=True, type="primary"):
-        st.switch_page("pages/2_Economics.py")
 
 st.write("")
-col3, col_spacer = st.columns([2, 1], gap="large")
 
-with col3:
+# ── Tool grid — Row 1 ─────────────────────────────────────────────────────────
+c1, c2, c3 = st.columns(3, gap="large")
+
+with c1:
     st.markdown("""
 <div class="tool-card">
-  <h3>🌿 Crop Overview <span class="badge badge-live">LIVE</span></h3>
-  <p>Integrated pre-harvest, post-harvest, and batch dashboard — all in one place, linked by Batch ID.</p>
-  <ul>
-    <li>Pre-harvest: batch identity, growing env., inputs, pest &amp; nutrient logs, yield/selling</li>
-    <li>Post-harvest: processing weights, curing log, COA testing, packaging, byproduct sales</li>
-    <li>Batch dashboard: completeness indicators, weight flow funnel, revenue breakdown</li>
-    <li>Upload existing PreHarvest or PostHarvest Excel templates</li>
-    <li>Download everything as CSV or Excel</li>
-  </ul>
+  <div class="card-preview" style="background:#e8f5e9;">🗺️</div>
+  <div class="card-body">
+    <h3>🌱 Soil Assessment Tool</h3>
+    <ul>
+      <li>Auto-fills USDA NRCS soil data from your farm address</li>
+      <li>Fertility gap analysis with amendment recommendations</li>
+      <li>Supports hemp &amp; cannabis targets — downloadable report</li>
+    </ul>
+  </div>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
-    if st.button("→ Open Crop Overview", use_container_width=True, type="primary"):
+    if st.button("→ Soil Assessment", use_container_width=True, type="primary",
+                 disabled=not _accepted, key="btn_soil"):
+        st.switch_page("pages/1_Soil_Assessment.py")
+
+with c2:
+    st.markdown("""
+<div class="tool-card">
+  <div class="card-preview" style="background:#e3f2fd;">📊</div>
+  <div class="card-body">
+    <h3>💰 Economics Tool</h3>
+    <ul>
+      <li>Enterprise budgets for cannabis &amp; 5 hemp production models</li>
+      <li>Break-even yield, price &amp; profitability analysis</li>
+      <li>NY wholesale price benchmarks — export to Excel</li>
+    </ul>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+    st.write("")
+    if st.button("→ Economics Tool", use_container_width=True, type="primary",
+                 disabled=not _accepted, key="btn_econ"):
+        st.switch_page("pages/2_Economics.py")
+
+with c3:
+    st.markdown("""
+<div class="tool-card">
+  <div class="card-preview" style="background:#e8f5e9;">🌿</div>
+  <div class="card-body">
+    <h3>🌿 Crop Overview</h3>
+    <ul>
+      <li>Pre-harvest &amp; post-harvest records linked by Batch ID</li>
+      <li>Weight flow funnel, COA results, revenue breakdown</li>
+      <li>Export to CSV or Excel — links to Economics Tool</li>
+    </ul>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+    st.write("")
+    if st.button("→ Crop Overview", use_container_width=True, type="primary",
+                 disabled=not _accepted, key="btn_crop"):
         st.switch_page("pages/3_Crop_Overview.py")
 
 st.write("")
-col6, col7 = st.columns(2, gap="large")
 
-with col6:
+# ── Tool grid — Row 2 ─────────────────────────────────────────────────────────
+c4, c5, c6 = st.columns(3, gap="large")
+
+with c4:
     st.markdown("""
 <div class="tool-card">
-  <h3>📋 CIP Form Builder <span class="badge badge-live">LIVE</span></h3>
-  <p>Guided form that generates a submission-ready NYS OCM Community Impact Plan (.docx).</p>
-  <ul>
-    <li>Step-by-step tabs for all 7 CIP sections</li>
-    <li>Pre-filled narrative paragraphs from your answers</li>
-    <li>Character count indicators per OCM limits</li>
-    <li>Timeline table and budget estimator included</li>
-    <li>Download as Microsoft Word (.docx)</li>
-  </ul>
+  <div class="card-preview" style="background:#f3e5f5;">📋</div>
+  <div class="card-body">
+    <h3>📋 CIP Form Builder</h3>
+    <ul>
+      <li>Guided form for all 7 NYS OCM CIP sections</li>
+      <li>Pre-filled narrative paragraphs from your answers</li>
+      <li>Download as submission-ready Word (.docx)</li>
+    </ul>
+  </div>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
-    if st.button("→ Open CIP Form Builder", use_container_width=True, type="primary"):
+    if st.button("→ CIP Form Builder", use_container_width=True, type="primary",
+                 disabled=not _accepted, key="btn_cip"):
         st.switch_page("pages/6_CIP_Form.py")
 
-with col7:
+with c5:
     st.markdown("""
 <div class="tool-card">
-  <h3>📂 SOP Library <span class="badge badge-live">LIVE</span></h3>
-  <p>Downloadable Standard Operating Procedure templates for licensed NYS cannabis and hemp operations.</p>
-  <ul>
-    <li>164 SOPs across Cultivation, Processing, Retail, and General categories</li>
-    <li>Master Index & Cross-Reference Guide</li>
-    <li>Microsoft Word (.docx) format — customisable with your business details</li>
-    <li>Generic/white-label templates — not legal or compliance advice</li>
-  </ul>
+  <div class="card-preview" style="background:#fff3e0;">📂</div>
+  <div class="card-body">
+    <h3>📂 SOP Library</h3>
+    <ul>
+      <li>164 Standard Operating Procedure templates</li>
+      <li>Cultivation, Processing, Retail &amp; General categories</li>
+      <li>Customisable Word (.docx) — white-label format</li>
+    </ul>
+  </div>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
-    if st.button("→ Open SOP Library", use_container_width=True, type="primary"):
+    if st.button("→ SOP Library", use_container_width=True, type="primary",
+                 disabled=not _accepted, key="btn_sop"):
         st.switch_page("pages/7_Resources.py")
 
-st.write("")
-col8, col_spacer2 = st.columns([2, 1], gap="large")
-
-with col8:
+with c6:
     st.markdown("""
 <div class="tool-card">
-  <h3>💬 Site Feedback <span class="badge badge-live">LIVE</span></h3>
-  <p>Help us improve these tools — share your experience and suggestions.</p>
-  <ul>
-    <li>New vs. returning user check-in</li>
-    <li>Optional demographics (age, sex, orientation)</li>
-    <li>NYS county (if applicable)</li>
-    <li>Free-text suggestions for improvements</li>
-    <li>Anonymous — no personally identifiable information collected</li>
-  </ul>
+  <div class="card-preview" style="background:#fce4ec;">💬</div>
+  <div class="card-body">
+    <h3>💬 Feedback</h3>
+    <ul>
+      <li>Help us improve — share your experience</li>
+      <li>Optional demographics &amp; NYS county</li>
+      <li>Anonymous — no personal data collected</li>
+    </ul>
+  </div>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
-    if st.button("→ Share Feedback", use_container_width=True, type="primary"):
+    if st.button("→ Share Feedback", use_container_width=True, type="primary",
+                 disabled=not _accepted, key="btn_feedback"):
         st.switch_page("pages/8_Feedback.py")
 
-st.caption("Built for NYS licensed cultivators · Data: USDA NRCS + US Census Geocoder · "
-           "Targets: NY State Extension / CCE agronomic frameworks")
+st.write("")
+st.divider()
+
+# ── Disclaimer at bottom ──────────────────────────────────────────────────────
+st.markdown("""
+<div class="disclaimer-box">
+<h4>⚠️ Disclaimer & Data Sources — Please Read Before Using These Tools</h4>
+These tools are for <b>educational and planning purposes only</b>. They do not constitute
+professional agronomic, financial, or legal advice. <b>The developers assume no responsibility
+or liability</b> for any decisions, crop losses, financial outcomes, or regulatory consequences
+arising from use of these tools. Always consult a <b>certified crop advisor (CCA)</b> or your
+local <b>Cornell Cooperative Extension</b> office before making large-scale decisions.
+Compliance with all applicable <b>NYS OCM</b> regulations is the sole responsibility of the user.<br><br>
+<b>Soil data:</b> USDA NRCS SSURGO ·
+<b>Geocoding:</b> US Census Geocoder ·
+<b>Lab conversions:</b> Cornell NMSP Conversion Tools (v7) ·
+<b>Lime rates:</b> Cornell NMSP Lime Calculator v2.0 (2014) ·
+<b>Hemp economics:</b> Bader (U. Kentucky, 2021) ·
+<b>Cannabis economics:</b> Ruterbories, Hanchar &amp; Vergara (2025) · NYS OCM market reports · Cannabis Benchmarks (2024–25).
+</div>
+""", unsafe_allow_html=True)
+
+st.write("")
+disc_col, feed_col = st.columns([3, 1])
+with disc_col:
+    agreed = st.checkbox(
+        "✅ I have read the disclaimer and understand that the developers are not liable "
+        "for any information or data provided by these tools.",
+        value=_accepted,
+        key="disclaimer_checkbox_home",
+    )
+    if agreed and not _accepted:
+        st.session_state["disclaimer_accepted"] = True
+        st.rerun()
+    if not _accepted:
+        st.caption("⬆️ You must check the box above to unlock the tools.")
+    else:
+        st.caption("Tools unlocked. You can now access all tools above.")
+
+with feed_col:
+    st.write("")
+    if st.button("💬 Share Feedback", use_container_width=True, key="btn_feedback_bottom"):
+        st.switch_page("pages/8_Feedback.py")
+
+st.write("")
+st.caption(
+    "Built for NYS licensed cultivators · "
+    "Data: USDA NRCS + US Census Geocoder · "
+    "Targets: NY State Extension / CCE agronomic frameworks"
+)

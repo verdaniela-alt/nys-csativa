@@ -69,11 +69,11 @@ nav[data-testid="stSidebarNav"]              { display: none !important; }
 """
 
 
-def render_sidebar():
+def render_sidebar(require_disclaimer=True):
     """Inject custom branded navigation into st.sidebar."""
     st.markdown(_HIDE_AUTO_NAV_CSS, unsafe_allow_html=True)
 
-    if not st.session_state.get("disclaimer_accepted", False):
+    if require_disclaimer and not st.session_state.get("disclaimer_accepted", False):
         _show_disclaimer_gate()
         st.stop()
 
