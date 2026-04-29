@@ -489,54 +489,60 @@ with st.expander("📤 Upload Existing Excel Templates", expanded=False):
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("### Batch Management")
-st.caption("One batch ID links pre-harvest and post-harvest data. Creating a batch here adds it to both.")
 
 all_batch_ids = sorted(set(
     list(st.session_state.preharvest_batches.keys()) +
     list(st.session_state.postharvest_batches.keys())
 ))
 
-col_sel, col_new_id, col_btn, col_del = st.columns([3, 2, 1, 1])
-with col_sel:
-    selected_batch = st.selectbox(
-        "Select batch to view / edit",
-        all_batch_ids if all_batch_ids else ["(none)"],
-        key="crop_selected_batch",
-        disabled=not all_batch_ids,
-    )
-    if not all_batch_ids:
-        selected_batch = None
+# ── Create new batch ──────────────────────────────────────────────────────────
+with st.container(border=True):
+    st.markdown("**➕ Create a new batch**")
+    cr1, cr2 = st.columns([3, 1])
+    with cr1:
+        new_bid = st.text_input(
+            "Batch ID",
+            placeholder="e.g. BATCH-2025-001",
+            key="crop_new_bid",
+            help="Enter a unique name for this batch, then click Create.",
+        )
+    with cr2:
+        st.write("")
+        st.write("")
+        if st.button("Create batch", use_container_width=True, type="primary"):
+            bid = new_bid.strip()
+            if not bid:
+                st.error("Please enter a batch ID first.")
+            elif bid in st.session_state.preharvest_batches or bid in st.session_state.postharvest_batches:
+                st.error(f"'{bid}' already exists — choose a different name.")
+            else:
+                st.session_state.preharvest_batches[bid] = {
+                    "data": {}, "plants_df": None, "nutrients_df": None, "pests_df": None,
+                }
+                st.session_state.postharvest_batches[bid] = {"data": {}, "curing_log_df": None}
+                st.session_state.crop_selected_batch = bid
+                st.rerun()
 
-with col_new_id:
-    new_bid = st.text_input("New batch ID", placeholder="e.g. BATCH-2025-001",
-                            key="crop_new_bid", label_visibility="collapsed")
-with col_btn:
-    st.write("")
-    if st.button("➕ Create", use_container_width=True):
-        bid = new_bid.strip()
-        if not bid:
-            st.error("Enter a batch ID.")
-        elif bid in st.session_state.preharvest_batches or bid in st.session_state.postharvest_batches:
-            st.error(f"'{bid}' already exists.")
-        else:
-            st.session_state.preharvest_batches[bid] = {
-                "data": {}, "plants_df": None, "nutrients_df": None, "pests_df": None,
-            }
-            st.session_state.postharvest_batches[bid] = {"data": {}, "curing_log_df": None}
-            st.session_state.crop_selected_batch = bid
-            st.rerun()
-
-with col_del:
-    st.write("")
-    if selected_batch and selected_batch != "(none)":
+# ── Select / delete existing batch ───────────────────────────────────────────
+if all_batch_ids:
+    col_sel, col_del = st.columns([4, 1])
+    with col_sel:
+        selected_batch = st.selectbox(
+            "Select batch to view / edit",
+            all_batch_ids,
+            key="crop_selected_batch",
+        )
+    with col_del:
+        st.write("")
+        st.write("")
         if st.button("🗑 Delete", use_container_width=True,
                      help="Remove this batch from both pre- and post-harvest"):
             st.session_state.preharvest_batches.pop(selected_batch, None)
             st.session_state.postharvest_batches.pop(selected_batch, None)
             st.rerun()
-
-if not selected_batch or selected_batch == "(none)":
-    st.info("Create a new batch or upload an existing template to get started.")
+else:
+    selected_batch = None
+    st.info("No batches yet — enter a batch ID above and click **Create batch** to get started.")
     st.stop()
 
 # Ensure the selected batch exists in both dicts

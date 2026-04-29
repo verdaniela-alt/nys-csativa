@@ -12,9 +12,17 @@ st.set_page_config(
     page_title="NYS Cannabis & Hemp Grower Tools",
     page_icon="🌿",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 render_sidebar(require_disclaimer=False)
+
+# Hide sidebar entirely on homepage
+st.markdown("""
+<style>
+[data-testid="stSidebar"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
+</style>
+""", unsafe_allow_html=True)
 
 _accepted = st.session_state.get("disclaimer_accepted", False)
 
