@@ -1,4 +1,5 @@
 """
+# badge-version: 3
 app.py — Landing page for nys-csativa.streamlit.app
 NY Cannabis & Hemp Grower Tools — multi-page Streamlit application.
 """
