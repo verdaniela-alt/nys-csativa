@@ -84,6 +84,8 @@ st.markdown("""
     object-fit: contain;
     display: block;
 }
+div[style*="fce4ec"] { height: 180px; }
+div[style*="fce4ec"] img { height: 170px; }
 .card-body {
     padding: 14px 18px 12px 18px;
     flex: 1;
