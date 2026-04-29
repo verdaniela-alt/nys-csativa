@@ -121,7 +121,7 @@ NUTRIENTS = [
          unit="ppm",
          hemp_min=0,    hemp_max=75,   mj_min=0,    mj_max=50,
          mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
-         note="Excess causes salt stress; MJ more sensitive",
+         note="Excess causes salt stress; adult-use cannabis more sensitive",
          mm_factor=1.0, allow_unit_conversion=True),
 
     dict(name="Al (Aluminum)",

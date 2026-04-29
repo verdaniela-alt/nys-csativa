@@ -24,8 +24,7 @@ def _dl(path, label=None):
     """Render a single download button for a .docx file."""
     fname = os.path.basename(path)
     if label is None:
-        # Strip leading code prefix for display: "CULT-001_Cleaning..." → "CULT-001 Cleaning..."
-        label = fname.replace(".docx", "").replace("_", " ", 1)
+        label = fname.replace(".docx", "").replace("_", " ")
     if os.path.exists(path):
         with open(path, "rb") as f:
             st.download_button(
@@ -48,7 +47,7 @@ def _section(folder, prefix, title, description, color):
         st.write("")
         cols = st.columns(2)
         for i, fname in enumerate(files):
-            label = fname.replace(".docx", "").replace("_", " ", 1)
+            label = fname.replace(".docx", "").replace("_", " ")
             with cols[i % 2]:
                 _dl(os.path.join(sop_dir, fname), label)
 

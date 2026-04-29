@@ -120,7 +120,7 @@ VC_KEYS = [
     ("Packaging & Supplies",        "vc_packaging"),
     ("Testing / Lab Fees (COA)",    "vc_testing"),
     ("Other Variable Costs",        "vc_other"),
-    # Excise tax is only shown/used for Cannabis (MJ) — handled separately in render/compute
+    # Excise tax is only shown/used for Adult-Use Cannabis — handled separately in render/compute
 ]
 
 NYS_EXCISE_RATE = 0.09   # 9% of gross wholesale revenue — NYS TP-600
@@ -228,9 +228,9 @@ def render_scenario(i):
                           key=f"{p}name",
                           help="E.g. 'Outdoor Round 1', 'Greenhouse Auto', 'Indoor Photo'")
         with c2:
-            st.selectbox("Crop type", ["Cannabis (MJ)", "Hemp"],
+            st.selectbox("Crop type", ["Adult-Use Cannabis", "Hemp"],
                          key=f"{p}crop_type",
-                         help="Cannabis (MJ): subject to NYS 9% excise tax and federal §280E. "
+                         help="Adult-Use Cannabis: subject to NYS 9% excise tax and federal §280E. "
                               "Hemp: federally legal — standard deductions apply, no excise tax.")
         with c3:
             st.selectbox("Operation type", ["Outdoor", "Greenhouse", "Indoor"],
@@ -239,7 +239,7 @@ def render_scenario(i):
             st.selectbox("Plant type", ["Photoperiod", "Autoflower"],
                          key=f"{p}plant_type")
 
-        _crop_now = st.session_state.get(f"{p}crop_type", "Cannabis (MJ)")
+        _crop_now = st.session_state.get(f"{p}crop_type", "Adult-Use Cannabis")
         if _crop_now == "Hemp":
             _hmc1, _hmc2 = st.columns([2, 3])
             with _hmc1:
@@ -272,7 +272,7 @@ def render_scenario(i):
                             help="If blank, calculated from sq ft above. Used for amendment cost scaling.")
 
     # Derive crop/hemp flags (used by sections 2, 4, 6)
-    _crop = st.session_state.get(f"{p}crop_type", "Cannabis (MJ)")
+    _crop = st.session_state.get(f"{p}crop_type", "Adult-Use Cannabis")
     _hpm  = st.session_state.get(f"{p}hemp_prod_model", HEMP_PROD_MODELS[0])
     _is_hemp           = _crop == "Hemp"
     _is_hemp_transplant = _is_hemp and _hpm in ["CBD Flower (Transplant)", "CBD Flower (Plasticulture)"]
@@ -516,14 +516,14 @@ def render_scenario(i):
 
             total_vc = sum(gv(f"{p}{s}") for _, s in VC_KEYS) + total_lbr2
 
-            # ── NYS Excise Tax — Cannabis (MJ) only ───────────────────────
+            # ── NYS Excise Tax — Adult-Use Cannabis only ───────────────────────
             ty_vc  = gv(f"{p}n_plants") * gv(f"{p}yield_pp") * int(gv(f"{p}cycles", 1))
             fl_p   = gv(f"{p}fl_price"); pr_p = gv(f"{p}pr_price"); ex_p = gv(f"{p}ex_price")
             fl_pct = gv(f"{p}fl_pct");   pr_pct = gv(f"{p}pr_pct"); ex_pct = gv(f"{p}ex_pct")
             rev_est    = ty_vc * (fl_pct/100*fl_p + pr_pct/100*pr_p + ex_pct/100*ex_p)
             excise_est = round(rev_est * NYS_EXCISE_RATE, 2)
             st.divider()
-            st.markdown("**NYS Cannabis Excise Tax — Cannabis (MJ) only**")
+            st.markdown("**NYS Cannabis Excise Tax — Adult-Use Cannabis only**")
             st.caption(
                 "9% of gross wholesale revenue. Remit quarterly via **NYS TP-600**. "
                 "Treated as COGS (Account 5100) — deductible under §280E federally and in NYS. "
@@ -654,7 +654,7 @@ def compute_scenario(i):
     cycles = int(gv(f"{p}cycles", 1))
     acres  = gv(f"{p}acres") or (area / 43560)
 
-    is_mj  = st.session_state.get(f"{p}crop_type", "Cannabis (MJ)") == "Cannabis (MJ)"
+    is_mj  = st.session_state.get(f"{p}crop_type", "Adult-Use Cannabis") == "Adult-Use Cannabis"
     is_hemp = not is_mj
     _hpm   = st.session_state.get(f"{p}hemp_prod_model", HEMP_PROD_MODELS[0])
     _is_hemp_rowcrop  = is_hemp and _hpm in ["CBD Row Crop", "Grain Hemp", "Fiber Hemp"]
@@ -724,7 +724,7 @@ def compute_scenario(i):
 
     return {
         "name":               st.session_state.get(f"{p}name", f"Scenario {i+1}"),
-        "crop_type":          st.session_state.get(f"{p}crop_type", "Cannabis (MJ)"),
+        "crop_type":          st.session_state.get(f"{p}crop_type", "Adult-Use Cannabis"),
         "hemp_prod_model":    _hpm if is_hemp else None,
         "op_type":            st.session_state.get(f"{p}op_type", "Outdoor"),
         "plant_type":         st.session_state.get(f"{p}plant_type", "Photoperiod"),
@@ -866,10 +866,10 @@ def render_summary(results):
     tax_rows   = []
     if mj_results:
         st.divider()
-        st.markdown("### 🏛️ Federal §280E & NYS Tax Analysis — Cannabis (MJ) Scenarios")
+        st.markdown("### 🏛️ Federal §280E & NYS Tax Analysis — Adult-Use Cannabis Scenarios")
         st.info(
             "**IRS §280E** disallows deductions for businesses trafficking in Schedule I substances. "
-            "Cannabis (MJ) businesses may only deduct **COGS / variable costs** federally. "
+            "Adult-Use Cannabis businesses may only deduct **COGS / variable costs** federally. "
             "**NYS is decoupled** (Tax Law §208(9)(o), eff. 1/1/2023) — all expenses remain deductible in NY."
         )
         tax_rows = []
@@ -1036,7 +1036,7 @@ _ECON_TEMPLATE_COLS = [
     "fl_pct","pr_pct","ex_pct","fl_price","pr_price","ex_price",
 ]
 _ECON_DEFAULTS = {
-    "crop_type": "Cannabis (MJ)", "op_type": "Outdoor", "plant_type": "Photoperiod",
+    "crop_type": "Adult-Use Cannabis", "op_type": "Outdoor", "plant_type": "Photoperiod",
     "area_sqft": 0.0, "cycles": 1, "acres": 0.0, "n_plants": 0.0,
     "yield_pp": 0.0, "moisture": 82.0, "wage": 20.0,
     "fl_pct": 60.0, "pr_pct": 25.0, "ex_pct": 15.0,
@@ -1093,7 +1093,7 @@ with st.expander("📂 Upload Scenario Data (CSV or Excel)", expanded=False):
                             except Exception:
                                 return _ECON_DEFAULTS.get(col, 0.0)
                         st.session_state[f"{_p}name"]       = str(_row.get("scenario_name", f"Scenario {_i+1}")).strip() or f"Scenario {_i+1}"
-                        st.session_state[f"{_p}crop_type"]  = str(_row.get("crop_type", "Cannabis (MJ)")).strip() or "Cannabis (MJ)"
+                        st.session_state[f"{_p}crop_type"]  = str(_row.get("crop_type", "Adult-Use Cannabis")).strip() or "Adult-Use Cannabis"
                         st.session_state[f"{_p}op_type"]    = str(_row.get("op_type", "Outdoor")).strip() or "Outdoor"
                         st.session_state[f"{_p}plant_type"] = str(_row.get("plant_type", "Photoperiod")).strip() or "Photoperiod"
                         for _col in ["area_sqft","acres","n_plants","yield_pp","moisture","wage",

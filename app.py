@@ -101,7 +101,7 @@ with hcol1:
 <div class="site-header">
   <div>
     <h1>🌿 NYS Cannabis & Hemp Grower Tools</h1>
-    <p>Free, science-based tools for licensed New York State cannabis and hemp cultivators.<br>
+    <p>Free, science-based tools for licensed New York State adult-use cannabis and hemp cultivators.<br>
     Built on USDA NRCS soil data and NY State extension agronomic frameworks.</p>
   </div>
 </div>
@@ -130,7 +130,7 @@ with c1:
     <ul>
       <li>Auto-fills USDA NRCS soil data from your farm address</li>
       <li>Fertility gap analysis with amendment recommendations</li>
-      <li>Supports hemp &amp; cannabis targets — downloadable report</li>
+      <li>Supports hemp &amp; adult-use cannabis targets — downloadable report</li>
     </ul>
   </div>
 </div>
@@ -147,7 +147,7 @@ with c2:
   <div class="card-body">
     <h3>💰 Economics Tool</h3>
     <ul>
-      <li>Enterprise budgets for cannabis &amp; 5 hemp production models</li>
+      <li>Enterprise budgets for adult-use cannabis &amp; 5 hemp production models</li>
       <li>Break-even yield, price &amp; profitability analysis</li>
       <li>NY wholesale price benchmarks — export to Excel</li>
     </ul>
@@ -162,7 +162,29 @@ with c2:
 with c3:
     st.markdown("""
 <div class="tool-card">
-  <div class="card-preview" style="background:#e8f5e9;">🌿</div>
+  <div class="card-preview" style="background:#e8f5e9;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 100 100">
+      <!-- Cannabis leaf cartoon -->
+      <g fill="#2e7d32" opacity="0.85">
+        <!-- center stem -->
+        <rect x="48" y="45" width="4" height="38" rx="2"/>
+        <!-- main center leaf -->
+        <ellipse cx="50" cy="30" rx="10" ry="22" transform="rotate(0 50 50)"/>
+        <!-- left leaves -->
+        <ellipse cx="50" cy="38" rx="9" ry="20" transform="rotate(-35 50 50)"/>
+        <ellipse cx="50" cy="38" rx="7" ry="17" transform="rotate(-65 50 50)"/>
+        <ellipse cx="50" cy="38" rx="5" ry="13" transform="rotate(-90 50 50)"/>
+        <!-- right leaves -->
+        <ellipse cx="50" cy="38" rx="9" ry="20" transform="rotate(35 50 50)"/>
+        <ellipse cx="50" cy="38" rx="7" ry="17" transform="rotate(65 50 50)"/>
+        <ellipse cx="50" cy="38" rx="5" ry="13" transform="rotate(90 50 50)"/>
+      </g>
+      <!-- highlight -->
+      <g fill="#a5d6a7" opacity="0.4">
+        <ellipse cx="50" cy="28" rx="4" ry="12"/>
+      </g>
+    </svg>
+  </div>
   <div class="card-body">
     <h3>🌿 Crop Overview</h3>
     <ul>
