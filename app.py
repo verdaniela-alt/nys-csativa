@@ -62,23 +62,34 @@ st.markdown("""
     border: 1.5px solid #dee2e6;
     border-radius: 12px;
     overflow: hidden;
-    height: 100%;
+    height: 340px;
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
     transition: box-shadow 0.2s;
 }
 .tool-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.13); }
 .card-preview {
     width: 100%;
-    height: 160px;
+    height: 140px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 4rem;
 }
-.card-body { padding: 16px 18px 12px 18px; }
-.card-body h3 { margin: 0 0 10px 0; font-size: 1.05rem; color: #1b5e20; }
-.card-body ul { margin: 0; padding-left: 18px; font-size: 0.88rem;
-                color: #444; line-height: 1.7; }
+.card-preview img {
+    width: 90px;
+    height: 90px;
+    object-fit: contain;
+}
+.card-body {
+    padding: 14px 18px 12px 18px;
+    flex: 1;
+    overflow: hidden;
+}
+.card-body h3 { margin: 0 0 8px 0; font-size: 1rem; color: #1b5e20; }
+.card-body ul { margin: 0; padding-left: 16px; font-size: 0.85rem;
+                color: #444; line-height: 1.6; }
 
 /* ── Disclaimer ── */
 .disclaimer-box {
@@ -124,7 +135,7 @@ c1, c2, c3 = st.columns(3, gap="large")
 with c1:
     st.markdown("""
 <div class="tool-card">
-  <div class="card-preview" style="background:#e8f5e9;">🗺️</div>
+  <div class="card-preview" style="background:#e8f5e9;"><span style="font-size:3.5rem;">🗺️</span></div>
   <div class="card-body">
     <h3>🌱 Soil Assessment Tool</h3>
     <ul>
@@ -143,7 +154,7 @@ with c1:
 with c2:
     st.markdown("""
 <div class="tool-card">
-  <div class="card-preview" style="background:#e3f2fd;">📊</div>
+  <div class="card-preview" style="background:#e3f2fd;"><span style="font-size:3.5rem;">📊</span></div>
   <div class="card-body">
     <h3>💰 Economics Tool</h3>
     <ul>
@@ -162,29 +173,7 @@ with c2:
 with c3:
     st.markdown("""
 <div class="tool-card">
-  <div class="card-preview" style="background:#e8f5e9;">
-    <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 100 100">
-      <!-- Cannabis leaf cartoon -->
-      <g fill="#2e7d32" opacity="0.85">
-        <!-- center stem -->
-        <rect x="48" y="45" width="4" height="38" rx="2"/>
-        <!-- main center leaf -->
-        <ellipse cx="50" cy="30" rx="10" ry="22" transform="rotate(0 50 50)"/>
-        <!-- left leaves -->
-        <ellipse cx="50" cy="38" rx="9" ry="20" transform="rotate(-35 50 50)"/>
-        <ellipse cx="50" cy="38" rx="7" ry="17" transform="rotate(-65 50 50)"/>
-        <ellipse cx="50" cy="38" rx="5" ry="13" transform="rotate(-90 50 50)"/>
-        <!-- right leaves -->
-        <ellipse cx="50" cy="38" rx="9" ry="20" transform="rotate(35 50 50)"/>
-        <ellipse cx="50" cy="38" rx="7" ry="17" transform="rotate(65 50 50)"/>
-        <ellipse cx="50" cy="38" rx="5" ry="13" transform="rotate(90 50 50)"/>
-      </g>
-      <!-- highlight -->
-      <g fill="#a5d6a7" opacity="0.4">
-        <ellipse cx="50" cy="28" rx="4" ry="12"/>
-      </g>
-    </svg>
-  </div>
+  <div class="card-preview" style="background:#e8f5e9;"><span style="font-size:3.5rem;">🌿</span></div>
   <div class="card-body">
     <h3>🌿 Crop Overview</h3>
     <ul>
@@ -208,7 +197,7 @@ c4, c5, c6 = st.columns(3, gap="large")
 with c4:
     st.markdown("""
 <div class="tool-card">
-  <div class="card-preview" style="background:#f3e5f5;">📋</div>
+  <div class="card-preview" style="background:#f3e5f5;"><span style="font-size:3.5rem;">📋</span></div>
   <div class="card-body">
     <h3>📋 Community Impact Plan (CIP) Form Builder</h3>
     <ul>
@@ -227,7 +216,7 @@ with c4:
 with c5:
     st.markdown("""
 <div class="tool-card">
-  <div class="card-preview" style="background:#fff3e0;">📂</div>
+  <div class="card-preview" style="background:#fff3e0;"><span style="font-size:3.5rem;">📂</span></div>
   <div class="card-body">
     <h3>📂 SOP Library</h3>
     <ul>
@@ -246,7 +235,7 @@ with c5:
 with c6:
     st.markdown("""
 <div class="tool-card">
-  <div class="card-preview" style="background:#fce4ec;">💬</div>
+  <div class="card-preview" style="background:#fce4ec;"><span style="font-size:3.5rem;">💬</span></div>
   <div class="card-body">
     <h3>💬 Feedback</h3>
     <ul>
