@@ -84,6 +84,10 @@ st.markdown("""
     object-fit: contain;
     display: block;
 }
+/* Feedback and CIP icons — larger */
+div[style*="fce4ec"] img, div[style*="f3e5f5"] img {
+    height: 135px;
+}
 .card-body {
     padding: 14px 18px 12px 18px;
     flex: 1;
