@@ -8,8 +8,6 @@ import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from utils.sidebar import render_sidebar
 
-_IMG = os.path.join(os.path.dirname(__file__), "resources", "images")
-
 st.set_page_config(
     page_title="NYS Cannabis & Hemp Grower Tools",
     page_icon="🌿",
@@ -124,15 +122,17 @@ st.write("")
 c1, c2, c3 = st.columns(3, gap="large")
 
 with c1:
-    st.image(os.path.join(_IMG, "soil_badge.png"), use_container_width=True)
     st.markdown("""
-<div class="card-body" style="background:#fff;border:1.5px solid #dee2e6;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px 12px 18px;">
-    <h3 style="margin:0 0 10px 0;font-size:1.05rem;color:#1b5e20;">🌱 Soil Assessment Tool</h3>
-    <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#444;line-height:1.7;">
+<div class="tool-card">
+  <div class="card-preview" style="background:#e8f5e9;">🗺️</div>
+  <div class="card-body">
+    <h3>🌱 Soil Assessment Tool</h3>
+    <ul>
       <li>Auto-fills USDA NRCS soil data from your farm address</li>
       <li>Fertility gap analysis with amendment recommendations</li>
       <li>Supports hemp &amp; adult-use cannabis targets — downloadable report</li>
     </ul>
+  </div>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
@@ -141,15 +141,17 @@ with c1:
         st.switch_page("pages/1_Soil_Assessment.py")
 
 with c2:
-    st.image(os.path.join(_IMG, "economic_badge.svg"), use_container_width=True)
     st.markdown("""
-<div class="card-body" style="background:#fff;border:1.5px solid #dee2e6;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px 12px 18px;">
-    <h3 style="margin:0 0 10px 0;font-size:1.05rem;color:#1b5e20;">💰 Economics Tool</h3>
-    <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#444;line-height:1.7;">
+<div class="tool-card">
+  <div class="card-preview" style="background:#e3f2fd;">📊</div>
+  <div class="card-body">
+    <h3>💰 Economics Tool</h3>
+    <ul>
       <li>Enterprise budgets for adult-use cannabis &amp; 5 hemp production models</li>
       <li>Break-even yield, price &amp; profitability analysis</li>
       <li>NY wholesale price benchmarks — export to Excel</li>
     </ul>
+  </div>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
@@ -158,15 +160,39 @@ with c2:
         st.switch_page("pages/2_Economics.py")
 
 with c3:
-    st.image(os.path.join(_IMG, "crop_overview_badge.png"), use_container_width=True)
     st.markdown("""
-<div class="card-body" style="background:#fff;border:1.5px solid #dee2e6;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px 12px 18px;">
-    <h3 style="margin:0 0 10px 0;font-size:1.05rem;color:#1b5e20;">🌿 Crop Overview</h3>
-    <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#444;line-height:1.7;">
+<div class="tool-card">
+  <div class="card-preview" style="background:#e8f5e9;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 100 100">
+      <!-- Cannabis leaf cartoon -->
+      <g fill="#2e7d32" opacity="0.85">
+        <!-- center stem -->
+        <rect x="48" y="45" width="4" height="38" rx="2"/>
+        <!-- main center leaf -->
+        <ellipse cx="50" cy="30" rx="10" ry="22" transform="rotate(0 50 50)"/>
+        <!-- left leaves -->
+        <ellipse cx="50" cy="38" rx="9" ry="20" transform="rotate(-35 50 50)"/>
+        <ellipse cx="50" cy="38" rx="7" ry="17" transform="rotate(-65 50 50)"/>
+        <ellipse cx="50" cy="38" rx="5" ry="13" transform="rotate(-90 50 50)"/>
+        <!-- right leaves -->
+        <ellipse cx="50" cy="38" rx="9" ry="20" transform="rotate(35 50 50)"/>
+        <ellipse cx="50" cy="38" rx="7" ry="17" transform="rotate(65 50 50)"/>
+        <ellipse cx="50" cy="38" rx="5" ry="13" transform="rotate(90 50 50)"/>
+      </g>
+      <!-- highlight -->
+      <g fill="#a5d6a7" opacity="0.4">
+        <ellipse cx="50" cy="28" rx="4" ry="12"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-body">
+    <h3>🌿 Crop Overview</h3>
+    <ul>
       <li>Pre-harvest &amp; post-harvest records linked by Batch ID</li>
       <li>Weight flow funnel, COA results, revenue breakdown</li>
       <li>Export to CSV or Excel — links to Economics Tool</li>
     </ul>
+  </div>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
@@ -180,15 +206,17 @@ st.write("")
 c4, c5, c6 = st.columns(3, gap="large")
 
 with c4:
-    st.image(os.path.join(_IMG, "cip_badge.svg"), use_container_width=True)
     st.markdown("""
-<div class="card-body" style="background:#fff;border:1.5px solid #dee2e6;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px 12px 18px;">
-    <h3 style="margin:0 0 10px 0;font-size:1.05rem;color:#1b5e20;">📋 Community Impact Plan (CIP) Form Builder</h3>
-    <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#444;line-height:1.7;">
+<div class="tool-card">
+  <div class="card-preview" style="background:#f3e5f5;">📋</div>
+  <div class="card-body">
+    <h3>📋 Community Impact Plan (CIP) Form Builder</h3>
+    <ul>
       <li>Guided form for all 7 NYS OCM Community Impact Plan (CIP) sections</li>
       <li>Pre-filled narrative paragraphs from your answers</li>
       <li>Download as submission-ready Word (.docx)</li>
     </ul>
+  </div>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
@@ -197,15 +225,17 @@ with c4:
         st.switch_page("pages/6_CIP_Form.py")
 
 with c5:
-    st.image(os.path.join(_IMG, "sop_badge.svg"), use_container_width=True)
     st.markdown("""
-<div class="card-body" style="background:#fff;border:1.5px solid #dee2e6;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px 12px 18px;">
-    <h3 style="margin:0 0 10px 0;font-size:1.05rem;color:#1b5e20;">📂 SOP Library</h3>
-    <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#444;line-height:1.7;">
+<div class="tool-card">
+  <div class="card-preview" style="background:#fff3e0;">📂</div>
+  <div class="card-body">
+    <h3>📂 SOP Library</h3>
+    <ul>
       <li>164 Standard Operating Procedure templates</li>
       <li>Cultivation, Processing, Retail &amp; General categories</li>
       <li>Customisable Word (.docx) — white-label format</li>
     </ul>
+  </div>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
@@ -214,15 +244,17 @@ with c5:
         st.switch_page("pages/7_Resources.py")
 
 with c6:
-    st.image(os.path.join(_IMG, "feedback_badge.png"), use_container_width=True)
     st.markdown("""
-<div class="card-body" style="background:#fff;border:1.5px solid #dee2e6;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px 12px 18px;">
-    <h3 style="margin:0 0 10px 0;font-size:1.05rem;color:#1b5e20;">💬 Feedback</h3>
-    <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#444;line-height:1.7;">
+<div class="tool-card">
+  <div class="card-preview" style="background:#fce4ec;">💬</div>
+  <div class="card-body">
+    <h3>💬 Feedback</h3>
+    <ul>
       <li>Help us improve — share your experience</li>
       <li>Optional demographics &amp; NYS county</li>
       <li>Anonymous — no personal data collected</li>
     </ul>
+  </div>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
