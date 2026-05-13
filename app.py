@@ -113,8 +113,8 @@ with hcol1:
     st.markdown("""
 <div class="site-header">
   <div>
-    <h1>🌿 NYS Cannabis & Hemp Grower Tools</h1>
-    <p>Free, science-based tools for licensed New York State adult-use cannabis and hemp cultivators.<br>
+    <h1>🌿 NYS <em>Cannabis sativa</em> Hemp Grower Tools</h1>
+    <p>Free, science-based tools for licensed New York State adult-use <em>Cannabis sativa</em> hemp cultivators.<br>
     Built on USDA NRCS soil data and NY State extension agronomic frameworks.</p>
   </div>
 </div>
