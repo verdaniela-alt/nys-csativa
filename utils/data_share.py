@@ -29,6 +29,36 @@ NYS_COUNTIES = [
     "Outside NYS",
 ]
 
+# Per-tool anonymity descriptions shown to the user.
+# Each entry is (what_we_collect, what_we_do_not_collect).
+_TOOL_PRIVACY = {
+    "soil": (
+        "Soil nutrient levels, pH, organic matter, crop type, soil lab used, "
+        "and — only if you choose to share it — your county.",
+        "Your farm address, field coordinates, name, license number, or any "
+        "information that could identify you or your operation.",
+    ),
+    "econ": (
+        "Operation type, crop type, acreage, estimated yield, and summarized "
+        "cost and revenue totals (labor, variable costs, fixed costs, gross margin, "
+        "breakeven figures). No line-item costs.",
+        "Your farm name, address, license number, specific vendor costs, "
+        "or any contact information. No location data is collected for this tool.",
+    ),
+    "crop": (
+        "Strain name, growing method, plant counts, cultivated area, yield weights, "
+        "cannabinoid percentages (THC/CBD), soil inputs used, and disease presence.",
+        "Your batch ID, farm name, address, license number, Certificate of Analysis "
+        "details beyond pass/fail, or any identifier that could trace back to you.",
+    ),
+    "cip": (
+        "County, OCM region, license type, budget period, number of community goals "
+        "selected, and reporting frequency.",
+        "Your applicant name, business name, address, phone number, email, "
+        "or any specific financial or narrative content from your CIP application.",
+    ),
+}
+
 
 def _get_or_create_tab(tab_name: str):
     """Return a gspread Worksheet for tab_name, creating it if it doesn't exist."""
@@ -81,21 +111,33 @@ def render_share_block(
                    county is "" when county_widget=False
     county_widget: if True, show an optional NYS county selector before the buttons
     """
+    what_collect, what_not = _TOOL_PRIVACY.get(
+        tool_key,
+        ("Agronomic and financial summary data only.", "Any personally identifying information."),
+    )
+
     st.divider()
-    st.markdown("### Would you like to share your data with us?")
-    st.info(
-        "Sharing is entirely voluntary and helps us improve these tools for NYS growers.\n\n"
-        "**What we collect — and what we do NOT collect:**\n"
-        "- Your location is reduced to **county only** to avoid identifying your farm — "
-        "no address, street name, or GPS coordinates are ever stored\n"
-        "- **No personally identifying information** of any kind — no names, emails, "
-        "phone numbers, or business names — pure agronomic and financial data only\n"
-        "- **No batch numbers** or any identifier that could trace back to a specific "
-        "grower — all crop data is fully anonymized before being recorded\n"
-        "- For the CIP tool: only **county and license type** are shared — "
-        "no applicant name, address, or contact details\n\n"
-        "Selecting **No** sends nothing. Your data stays on your device.",
-        icon="🔒",
+    st.markdown("### 🔒 Would you like to share your results with us?")
+    st.markdown(
+        "Sharing is **entirely voluntary**. If you choose to share, your data helps us "
+        "understand the NYS *Cannabis sativa* industry better and improve these free tools "
+        "for all growers. We are committed to keeping your information anonymous — "
+        "**we cannot identify you, your farm, or your operation from what is collected.**"
+    )
+
+    col_yes_info, col_no_info = st.columns(2)
+    with col_yes_info:
+        st.success(
+            f"**✅ If you share — what we collect:**\n\n{what_collect}",
+        )
+    with col_no_info:
+        st.error(
+            f"**🚫 What we will NEVER collect:**\n\n{what_not}",
+        )
+
+    st.caption(
+        "Selecting **No** sends absolutely nothing. Your data stays only on your device "
+        "and is never transmitted anywhere. There is no tracking of any kind."
     )
 
     done_key   = f"_share_{tool_key}_done"
@@ -104,15 +146,19 @@ def render_share_block(
 
     if st.session_state.get(done_key):
         if st.session_state.get(choice_key) == "yes":
-            st.success("Thank you! Your anonymized data has been shared with us.", icon="✅")
+            st.success(
+                "Thank you! Your anonymized data has been shared with us and will help "
+                "improve these tools for NYS growers.",
+                icon="✅",
+            )
         else:
-            st.info("No problem — your data was not shared.", icon="👍")
+            st.info("No problem — your data was not shared and nothing was transmitted.", icon="👍")
         return
 
     county = ""
     if county_widget:
         sel = st.selectbox(
-            "Your county *(optional — helps us understand regional patterns)*",
+            "Your county *(optional — helps us understand regional patterns across NYS)*",
             NYS_COUNTIES,
             key=county_key,
         )
@@ -121,7 +167,7 @@ def render_share_block(
     col1, col2, _ = st.columns([1, 1, 4])
     with col1:
         yes_btn = st.button(
-            "Yes, share my data",
+            "Yes, share anonymously",
             key=f"_share_{tool_key}_yes",
             type="primary",
             use_container_width=True,
