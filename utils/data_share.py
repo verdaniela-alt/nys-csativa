@@ -87,7 +87,11 @@ def _write_rows(tab_name: str, columns: list, rows: list):
     try:
         existing = ws.get_all_values()
         if not existing:
+            # Empty sheet — write header then data
             ws.append_row(columns)
+        elif existing[0] != columns:
+            # Data exists but first row is not the header — insert header at row 1
+            ws.insert_row(columns, 1)
         for row in rows:
             ws.append_row([str(row.get(c, "")) for c in columns])
     except Exception:
