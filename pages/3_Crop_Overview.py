@@ -1706,6 +1706,72 @@ with outer_tabs[2]:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True)
 
+    if st.session_state.preharvest_batches or st.session_state.postharvest_batches:
+        from utils.data_share import render_share_block
+        _CROP_COLS = [
+            "timestamp",
+            "strain_name", "seed_source", "flowering_strategy", "season_cycle",
+            "growing_media", "soil_type",
+            "n_plants_outdoor", "n_plants_hoop", "n_plants_greenhouse", "n_plants_indoor",
+            "cultivated_area_sqm", "germination_rate_pct",
+            "thc_pct", "cbd_pct", "b_myrcene_pct", "b_caryophyllene_pct",
+            "biomass_weight_kg",
+            "total_wet_weight_g", "dried_weight_g", "moisture_loss_pct",
+            "disease_presence", "coa_result",
+            "input_mineral_soil", "input_blood_meal", "input_greensand",
+            "input_feather_meal", "input_poultry_manure", "input_livestock_manure",
+            "input_compost_worm", "input_biological", "input_regular_compost",
+            "input_plasticulture", "input_mulch",
+        ]
+        def _crop_row_builder(county):
+            _ph_b  = st.session_state.preharvest_batches
+            _pos_b = st.session_state.postharvest_batches
+            all_ids_share = sorted(set(list(_ph_b.keys()) + list(_pos_b.keys())))
+            rows_out = []
+            for _bid in all_ids_share:
+                _phd  = _ph_b.get(_bid,  {}).get("data", {})
+                _posd = _pos_b.get(_bid, {}).get("data", {})
+                _wet  = _posd.get("total_wet_weight_g") or 0
+                _dry  = _posd.get("dried_weight_g") or 0
+                _ml   = round((1 - _dry / _wet) * 100, 1) if _wet and _dry else ""
+                rows_out.append({
+                    "strain_name":          _phd.get("strain_name", ""),
+                    "seed_source":          _phd.get("seed_source", ""),
+                    "flowering_strategy":   _phd.get("flowering_strategy", ""),
+                    "season_cycle":         _phd.get("season_cycle", ""),
+                    "growing_media":        _phd.get("growing_media", ""),
+                    "soil_type":            _phd.get("soil_type", ""),
+                    "n_plants_outdoor":     _phd.get("n_plants_outdoor") or "",
+                    "n_plants_hoop":        _phd.get("n_plants_hoop") or "",
+                    "n_plants_greenhouse":  _phd.get("n_plants_greenhouse") or "",
+                    "n_plants_indoor":      _phd.get("n_plants_indoor") or "",
+                    "cultivated_area_sqm":  _phd.get("cultivated_area_sqm") or "",
+                    "germination_rate_pct": _phd.get("germination_rate") or "",
+                    "thc_pct":              _phd.get("thc_pct") or "",
+                    "cbd_pct":              _phd.get("cbd_pct") or "",
+                    "b_myrcene_pct":        _phd.get("b_myrcene_pct") or "",
+                    "b_caryophyllene_pct":  _phd.get("b_caryophyllene_pct") or "",
+                    "biomass_weight_kg":    _phd.get("biomass_weight_kg") or "",
+                    "total_wet_weight_g":   _wet or "",
+                    "dried_weight_g":       _dry or "",
+                    "moisture_loss_pct":    _ml,
+                    "disease_presence":     _phd.get("disease_presence", ""),
+                    "coa_result":           _posd.get("test_result", ""),
+                    "input_mineral_soil":   1 if _phd.get("input_mineral_soil") else 0,
+                    "input_blood_meal":     1 if _phd.get("input_blood_meal") else 0,
+                    "input_greensand":      1 if _phd.get("input_greensand") else 0,
+                    "input_feather_meal":   1 if _phd.get("input_feather_meal") else 0,
+                    "input_poultry_manure": 1 if _phd.get("input_poultry_manure") else 0,
+                    "input_livestock_manure": 1 if _phd.get("input_livestock_manure") else 0,
+                    "input_compost_worm":   1 if _phd.get("input_compost_worm") else 0,
+                    "input_biological":     1 if _phd.get("input_biological") else 0,
+                    "input_regular_compost":1 if _phd.get("input_regular_compost") else 0,
+                    "input_plasticulture":  1 if _phd.get("input_plasticulture") else 0,
+                    "input_mulch":          1 if _phd.get("input_mulch") else 0,
+                })
+            return rows_out
+        render_share_block("crop", "Crop Data", _CROP_COLS, _crop_row_builder)
+
 # ══════════════════════════════════════════════════════════════════════════════
 # DOWNLOAD SECTION
 # ══════════════════════════════════════════════════════════════════════════════

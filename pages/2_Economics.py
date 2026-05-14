@@ -1128,6 +1128,35 @@ with tabs[-1]:
             st.session_state.econ_results = [compute_scenario(i) for i in range(n)]
     if st.session_state.econ_results:
         render_summary(st.session_state.econ_results)
+        from utils.data_share import render_share_block
+        _ECON_COLS = [
+            "timestamp", "crop_type", "hemp_prod_model", "op_type", "plant_type",
+            "area_sqft", "acres", "cycles", "total_yield_lbs",
+            "total_labor_usd", "total_vc_usd", "total_fc_usd", "total_revenue_usd",
+            "gross_margin_usd", "net_return_usd", "cost_per_lb_usd",
+            "breakeven_price_usd", "breakeven_yield_lbs",
+        ]
+        def _econ_row_builder(county):
+            return [{
+                "crop_type":          r["crop_type"],
+                "hemp_prod_model":    r.get("hemp_prod_model") or "",
+                "op_type":            r["op_type"],
+                "plant_type":         r["plant_type"],
+                "area_sqft":          r["area_sqft"],
+                "acres":              round(r["acres"], 4) if r["acres"] else "",
+                "cycles":             r["cycles"],
+                "total_yield_lbs":    round(r["total_yield_lbs"], 2),
+                "total_labor_usd":    round(r["total_labor"], 2),
+                "total_vc_usd":       round(r["total_vc"], 2),
+                "total_fc_usd":       round(r["total_fc"], 2),
+                "total_revenue_usd":  round(r["total_revenue"], 2),
+                "gross_margin_usd":   round(r["gross_margin"], 2),
+                "net_return_usd":     round(r["net_return"], 2),
+                "cost_per_lb_usd":    round(r["cost_per_lb"], 4),
+                "breakeven_price_usd":round(r["breakeven_price"], 4),
+                "breakeven_yield_lbs":round(r["breakeven_yield"], 2),
+            } for r in st.session_state.econ_results]
+        render_share_block("econ", "Economics Data", _ECON_COLS, _econ_row_builder)
     else:
         st.info("Fill in your scenario data in the tabs above, then click **Calculate All Scenarios**.")
 

@@ -265,7 +265,14 @@ professional agronomic, financial, or legal advice. <b>The developers assume no 
 or liability</b> for any decisions, crop losses, financial outcomes, or regulatory consequences
 arising from use of these tools. Always consult a <b>certified crop advisor (CCA)</b> or your
 local <b>Cornell Cooperative Extension</b> office before making large-scale decisions.
-Compliance with all applicable <b>NYS OCM</b> regulations is the sole responsibility of the user.<br><br>
+Compliance with all applicable <b>NYS OCM</b> regulations is the sole responsibility of the user.
+Please note that while medical <em>Cannabis sativa</em> has been reclassified to Schedule III under federal law,
+adult-use <em>Cannabis sativa</em> remains Schedule I and is therefore still federally illicit under the
+Controlled Substances Act. Users are solely responsible for compliance with all applicable federal, state, and local laws.<br><br>
+For adult-use <em>Cannabis sativa</em> licensing in New York, visit the
+<a href="https://cannabis.ny.gov" target="_blank">NYS Office of Cannabis Management (OCM)</a>.
+For hemp <em>Cannabis sativa</em> licensing, visit the
+<a href="https://agriculture.ny.gov/hemp" target="_blank">NYS Department of Agriculture and Markets</a>.<br><br>
 <b>Soil data:</b> USDA NRCS SSURGO ·
 <b>Geocoding:</b> US Census Geocoder ·
 <b>Lab conversions:</b> Cornell NMSP Conversion Tools (v7) ·

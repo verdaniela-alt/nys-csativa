@@ -940,3 +940,20 @@ with tabs[7]:
         "The downloaded file is a Microsoft Word (.docx) document. Review all text carefully before "
         "submitting to OCM. Open-ended narrative responses must be 4,000 characters or fewer per OCM instructions."
     )
+
+    from utils.data_share import render_share_block
+    _CIP_COLS = [
+        "timestamp", "county", "ocm_region", "license_type",
+        "budget_period", "n_goals", "reporting_frequency",
+    ]
+    def _cip_row_builder(county):
+        _n_goals = 2 + (1 if d.get("include_goal3") else 0)
+        return [{
+            "county":              d.get("county", ""),
+            "ocm_region":          d.get("ocm_region", ""),
+            "license_type":        d.get("license_type", ""),
+            "budget_period":       d.get("budget_period", ""),
+            "n_goals":             _n_goals,
+            "reporting_frequency": d.get("reporting_frequency", ""),
+        }]
+    render_share_block("cip", "CIP Data", _CIP_COLS, _cip_row_builder)

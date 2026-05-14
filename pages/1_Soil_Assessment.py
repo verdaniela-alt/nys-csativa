@@ -650,6 +650,15 @@ if st.session_state.assessment_done:
 
     df = pd.DataFrame(rows)
 
+    # Store anonymized gap data for the optional data-sharing block below
+    st.session_state["_soil_share"] = {
+        "crop":      crop,
+        "lab":       lab,
+        "user_values": {k: v for k, v in user_values.items() if v is not None},
+        "deficient": list(deficient_nutrients),
+        "excess":    list(excess_nutrients),
+    }
+
     def style_status(val):
         if "DEFICIENT" in str(val): return "background-color: #ffd6d6; color: #8b0000; font-weight: bold"
         if "EXCESS"    in str(val): return "background-color: #fff3cd; color: #856404; font-weight: bold"
@@ -894,12 +903,75 @@ contact your local Cornell Cooperative Extension office.
             st.session_state["soil_amendment_cost_mid"] = budget_mid
             st.session_state["soil_amendment_acres"] = acres_est
 
-            st.info(
-                "💡 These estimates will be **pre-filled in the Economics Tool** "
-                "under Fertilizer & Amendments. Open the Economics Tool from the sidebar."
-            )
+            # Ask user if they want to carry amendment estimates to Economics Tool
+            _carry_done = st.session_state.get("_soil_carry_done", False)
+            _carry_yes  = st.session_state.get("_soil_carry_econ", False)
+
+            if not _carry_done:
+                st.markdown("**📊 Would you like to carry these amendment estimates into the Economics Tool?**")
+                st.caption("Your amendment cost will be pre-filled under Variable Costs in the Economics Tool.")
+                _cc1, _cc2, _ = st.columns([1, 1, 4])
+                with _cc1:
+                    if st.button("Yes, carry to Economics", key="_carry_econ_yes",
+                                 type="primary", use_container_width=True):
+                        st.session_state["_soil_carry_done"] = True
+                        st.session_state["_soil_carry_econ"] = True
+                        st.rerun()
+                with _cc2:
+                    if st.button("No thanks", key="_carry_econ_no", use_container_width=True):
+                        for _k in ["soil_amendment_cost_low", "soil_amendment_cost_high",
+                                   "soil_amendment_cost_mid", "soil_amendment_acres"]:
+                            st.session_state.pop(_k, None)
+                        st.session_state["_soil_carry_done"] = True
+                        st.session_state["_soil_carry_econ"] = False
+                        st.rerun()
+            elif _carry_yes:
+                st.success(
+                    "✅ Amendment estimates will be pre-filled in the Economics Tool under Variable Costs.",
+                    icon="📊"
+                )
+            else:
+                st.info("Amendment estimates were not carried to the Economics Tool.", icon="👍")
         else:
             st.caption("No per-acre cost data available for the detected deficiencies.")
+
+if st.session_state.assessment_done and "_soil_share" in st.session_state:
+    from utils.data_share import render_share_block
+    _sd = st.session_state["_soil_share"]
+    _uv = _sd["user_values"]
+    _SOIL_COLS = [
+        "timestamp", "county", "crop_type", "lab_type",
+        "pH", "OM_pct", "P_entered", "K_entered", "Ca_entered", "Mg_entered",
+        "S_entered", "Zn_entered", "Mn_entered", "Fe_entered", "Cu_entered",
+        "B_entered", "Na_entered", "Al_entered", "CEC", "Base_Sat_Ca_pct", "Base_Sat_K_pct",
+        "deficient_nutrients", "excess_nutrients",
+    ]
+    def _soil_row_builder(county):
+        return [{
+            "county":              county,
+            "crop_type":           _sd["crop"],
+            "lab_type":            _sd["lab"],
+            "pH":                  _uv.get("pH", ""),
+            "OM_pct":              _uv.get("Organic Matter", ""),
+            "P_entered":           _uv.get("P (Phosphorus)", ""),
+            "K_entered":           _uv.get("K (Potassium)", ""),
+            "Ca_entered":          _uv.get("Ca (Calcium)", ""),
+            "Mg_entered":          _uv.get("Mg (Magnesium)", ""),
+            "S_entered":           _uv.get("S (Sulfur)", ""),
+            "Zn_entered":          _uv.get("Zn (Zinc)", ""),
+            "Mn_entered":          _uv.get("Mn (Manganese)", ""),
+            "Fe_entered":          _uv.get("Fe (Iron)", ""),
+            "Cu_entered":          _uv.get("Cu (Copper)", ""),
+            "B_entered":           _uv.get("B (Boron)", ""),
+            "Na_entered":          _uv.get("Na (Sodium)", ""),
+            "Al_entered":          _uv.get("Al (Aluminum)", ""),
+            "CEC":                 _uv.get("CEC", ""),
+            "Base_Sat_Ca_pct":     _uv.get("Base Saturation Ca%", ""),
+            "Base_Sat_K_pct":      _uv.get("Base Saturation K%", ""),
+            "deficient_nutrients": ", ".join(_sd["deficient"]),
+            "excess_nutrients":    ", ".join(_sd["excess"]),
+        }]
+    render_share_block("soil", "Soil Data", _SOIL_COLS, _soil_row_builder, county_widget=True)
 
 st.divider()
 st.markdown("## How This Tool Works")
