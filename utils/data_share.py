@@ -87,13 +87,19 @@ def _write_rows(tab_name: str, columns: list, rows: list):
     try:
         existing = ws.get_all_values()
         if not existing:
-            # Empty sheet — write header then data
-            ws.append_row(columns)
+            # Empty sheet — write header first
+            ws.update("A1", [columns], value_input_option="RAW")
+            existing = [columns]
         elif existing[0] != columns:
-            # Data exists but first row is not the header — insert header at row 1
+            # Data exists but header is missing — insert it at row 1
             ws.insert_row(columns, 1)
+            existing = [columns] + existing
+        # Write each new row at an explicit row number (avoids append_row drift)
+        next_row = len(existing) + 1
         for row in rows:
-            ws.append_row([str(row.get(c, "")) for c in columns])
+            values = [str(row.get(c, "")) for c in columns]
+            ws.update(f"A{next_row}", [values], value_input_option="RAW")
+            next_row += 1
     except Exception:
         pass
 
