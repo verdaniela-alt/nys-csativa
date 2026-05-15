@@ -668,26 +668,139 @@ if st.session_state.assessment_done:
     styled = df.style.map(style_status, subset=["Status"])
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
-    csv = df.to_csv(index=False)
+    # ── Download buttons ─────────────────────────────────────────────────────
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    def _build_report_xlsx(gap_df, deficient_list, excess_list, crop_label, lab_label):
+        wb = openpyxl.Workbook()
+
+        # ── Sheet 1: Gap Analysis ────────────────────────────────────────────
+        ws1 = wb.active
+        ws1.title = "Gap Analysis"
+        header_fill = PatternFill("solid", fgColor="1565C0")
+        header_font = Font(bold=True, color="FFFFFF")
+        def_fill  = PatternFill("solid", fgColor="FFD6D6")
+        exc_fill  = PatternFill("solid", fgColor="FFF3CD")
+        ok_fill   = PatternFill("solid", fgColor="D6F0D6")
+
+        cols = list(gap_df.columns)
+        for ci, h in enumerate(cols, 1):
+            c = ws1.cell(1, ci, h)
+            c.font = header_font
+            c.fill = header_fill
+            c.alignment = Alignment(wrap_text=True)
+
+        for ri, row in gap_df.iterrows():
+            status = str(row.get("Status", ""))
+            row_fill = def_fill if "DEFICIENT" in status else (
+                       exc_fill if "EXCESS" in status else (
+                       ok_fill  if "ADEQUATE" in status else None))
+            for ci, col in enumerate(cols, 1):
+                c = ws1.cell(ri + 2, ci, str(row[col]) if row[col] != "—" else "")
+                if row_fill:
+                    c.fill = row_fill
+                c.alignment = Alignment(wrap_text=True)
+
+        ws1.column_dimensions["A"].width = 22
+        for letter in ["B","C","D","E","F","G"]:
+            ws1.column_dimensions[letter].width = 26
+        ws1.column_dimensions["H"].width = 40
+
+        # ── Sheet 2: Amendment Recommendations ──────────────────────────────
+        ws2 = wb.create_sheet("Amendments")
+        amend_headers = ["Deficiency Addressed", "Amendment", "Type", "Form",
+                         "How to Apply", "Typical Rate", "Notes",
+                         "Est. Price (low)", "Est. Price (high)", "Price Unit"]
+        for ci, h in enumerate(amend_headers, 1):
+            c = ws2.cell(1, ci, h)
+            c.font = header_font
+            c.fill = header_fill
+
+        ri2 = 2
+        seen_a = set()
+        for nname in deficient_list:
+            short = nname.split("(")[0].strip().lower()
+            for a in AMENDMENTS:
+                cond_lower = a["condition"].lower()
+                if (short in cond_lower or nname.lower() in cond_lower) and ">" not in a["condition"]:
+                    key_a = a["amendment"]
+                    if key_a in seen_a:
+                        continue
+                    seen_a.add(key_a)
+                    row_vals = [
+                        nname,
+                        a["amendment"],
+                        "Organic / OMRI" if a.get("organic") else "Conventional",
+                        a.get("form", ""),
+                        a.get("application", ""),
+                        a.get("rate", ""),
+                        a.get("notes", ""),
+                        a.get("price_low", ""),
+                        a.get("price_high", ""),
+                        a.get("price_unit", ""),
+                    ]
+                    for ci, v in enumerate(row_vals, 1):
+                        ws2.cell(ri2, ci, v)
+                    ri2 += 1
+
+        for excess_n in excess_list:
+            action = QUICK_AMEND.get(excess_n, {}).get("high", "Reduce inputs; re-test in 60–90 days")
+            row_vals = [f"{excess_n} (EXCESS)", "—", "—", "—", action, "—", "—", "", "", ""]
+            for ci, v in enumerate(row_vals, 1):
+                ws2.cell(ri2, ci, v)
+            ri2 += 1
+
+        if ri2 == 2:
+            ws2.cell(2, 1, "No amendments indicated — all nutrients within target range.")
+
+        for letter, w in zip(["A","B","C","D","E","F","G","H","I","J"],
+                              [24, 28, 18, 14, 36, 28, 40, 14, 14, 14]):
+            ws2.column_dimensions[letter].width = w
+
+        # ── Sheet 3: Summary ─────────────────────────────────────────────────
+        ws3 = wb.create_sheet("Summary")
+        import datetime
+        summary_rows = [
+            ("Report generated", datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")),
+            ("Crop type", crop_label),
+            ("Laboratory", lab_label),
+            ("Deficient nutrients", ", ".join(deficient_list) if deficient_list else "None"),
+            ("Excess nutrients",    ", ".join(excess_list)    if excess_list    else "None"),
+            ("Nutrients in range",
+             ", ".join(r["Nutrient"] for _, r in gap_df.iterrows()
+                       if "ADEQUATE" in str(r.get("Status","")))),
+        ]
+        for ri3, (k, v) in enumerate(summary_rows, 1):
+            ws3.cell(ri3, 1, k).font = Font(bold=True)
+            ws3.cell(ri3, 2, v)
+        ws3.column_dimensions["A"].width = 26
+        ws3.column_dimensions["B"].width = 60
+
+        buf = BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    _report_bytes = _build_report_xlsx(df, deficient_nutrients, excess_nutrients, crop, lab)
+
     dl_c1, dl_c2 = st.columns(2)
     with dl_c1:
-        st.download_button("⬇ Download Results (CSV)", data=csv,
-                           file_name="soil_gap_analysis.csv", mime="text/csv",
-                           use_container_width=True)
+        st.download_button(
+            "⬇ Download Full Report (Excel)",
+            data=_report_bytes,
+            file_name="soil_assessment_report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
     with dl_c2:
-        try:
-            import openpyxl  # noqa: F401
-            from io import BytesIO
-            _xbuf = BytesIO()
-            df.to_excel(_xbuf, index=False, sheet_name="Gap Analysis")
-            st.download_button(
-                "⬇ Download Results (Excel)", data=_xbuf.getvalue(),
-                file_name="soil_gap_analysis.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-            )
-        except ImportError:
-            st.caption("Install openpyxl for Excel download.")
+        st.download_button(
+            "⬇ Download Gap Analysis (CSV)",
+            data=df.to_csv(index=False),
+            file_name="soil_gap_analysis.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
 
     # ── Possible Amendments ────────────────────────────────────────────────
     st.divider()
