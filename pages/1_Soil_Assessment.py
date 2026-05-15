@@ -68,14 +68,25 @@ This tool provides <b>general agronomic guidance only</b>, based on cannabis and
 soil fertility literature and NY State extension frameworks.
 <b>The suggestions presented here are possible options, not prescriptions.</b>
 Results should be interpreted by a qualified professional before any action is taken.<br><br>
+<b>Limitations you should be aware of:</b><br>
+• Recommendations are based on <b>inherent soil properties</b> (from a recent soil test) and do
+  <b>not</b> account for your current management practices — including cover cropping, compost or
+  manure applications, irrigation practices, or other amendments already applied.<br>
+• This tool does <b>not</b> differentiate between production systems. Recommendations may differ
+  for field, greenhouse, hoop house, or container production.<br>
+• The USDA NRCS SSURGO data pulled from your address reflects soil survey classifications
+  collected largely in the 1970s. These describe <b>inherent</b> (relatively permanent) soil
+  properties such as texture, drainage class, and slope — not <b>dynamic</b> properties such as
+  current organic matter, recent pH changes, or the effect of your management on nutrient levels.<br>
+• Nutrient targets are drawn from the best available literature for <em>Cannabis sativa</em>,
+  which is limited and often extrapolated from related crops (e.g., tomatoes). As new research
+  emerges, targets may be updated.<br><br>
 <b>This tool and its developers assume no responsibility or liability</b> for any
 decisions, actions, crop losses, financial outcomes, or regulatory consequences
-arising from the use of this tool. Targets and recommendations are based on
-Mehlich III (or converted equivalent) extractions at the surface horizon (0–20 cm / 0–8 in)
-and may not reflect the full complexity of your specific field conditions.<br><br>
+arising from the use of this tool.<br><br>
 Always consult a <b>certified crop advisor (CCA)</b>, licensed agronomist, or your local
 Cornell Cooperative Extension office before making large-scale amendment applications.
-Compliance with all applicable <b>NY State Cannabis Control Board</b> regulations is
+Compliance with all applicable <b>NY State OCM and Ag &amp; Markets</b> regulations is
 the sole responsibility of the grower.
 </div>
 """, unsafe_allow_html=True)
@@ -428,6 +439,7 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
         "B (Boron)":         unit_micro,
         "Na (Sodium)":       unit_salts,
         "Al (Aluminum)":     unit_salts,
+        # EC and base saturation always use their own fixed units — not section-mapped
     }
 
     # ── Lime rate inputs (buffer pH + tillage) ───────────────────────────
@@ -477,16 +489,19 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
         "B (Boron)":           "Dairy One/Agro-One: B not typically reported. Leave blank if not on your report.",
         "Na (Sodium)":         "Dairy One/Agro-One: Na not typically reported. Leave blank if not on your report.",
         "Al (Aluminum)":       "Dairy One/Agro-One: reported in lbs/acre — set Salts & Other unit to lbs/acre.",
-        "CEC":                 "Always enter in meq/100g. Also reported as 'Total Exchange Capacity (M.E.)' or 'T.E.C.' on some lab reports — these are the same thing.",
-        "Base Saturation Ca%": "Always enter as %. This is the % of CEC occupied by Ca ions — different from Ca in lbs/acre.",
-        "Base Saturation K%":  "Always enter as %. This is the % of CEC occupied by K ions — different from K in lbs/acre.",
+        "CEC":                   "Always enter in meq/100g. Also reported as 'Total Exchange Capacity (M.E.)' or 'T.E.C.' on some lab reports — these are the same thing. CEC is an inherent soil property shown here for context.",
+        "EC (Soluble Salts)":    "Enter in dS/m or mS/cm (same value). Some labs report this as 'Soluble Salts' or 'EC'. Most relevant in greenhouse or container production. Leave blank if not on your report.",
+        "Base Saturation Ca%":   "Always enter as %. This is the % of CEC occupied by Ca ions — different from Ca in lbs/acre.",
+        "Base Saturation K%":    "Always enter as %. This is the % of CEC occupied by K ions — different from K in lbs/acre.",
+        "Base Saturation Mg%":   "Always enter as %. This is the % of CEC occupied by Mg ions. Target 10–20%. Leave blank if not on your report.",
     }
 
     groups = {
         "Basic Properties": ["pH", "Organic Matter"],
         "Macronutrients":   ["P (Phosphorus)", "K (Potassium)", "Ca (Calcium)", "Mg (Magnesium)", "S (Sulfur)"],
         "Micronutrients":   ["Zn (Zinc)", "Mn (Manganese)", "Fe (Iron)", "Cu (Copper)", "B (Boron)"],
-        "Salts & Other":    ["Na (Sodium)", "Al (Aluminum)", "CEC", "Base Saturation Ca%", "Base Saturation K%"],
+        "Salts & Other":    ["Na (Sodium)", "Al (Aluminum)", "CEC", "EC (Soluble Salts)",
+                             "Base Saturation Ca%", "Base Saturation K%", "Base Saturation Mg%"],
     }
 
     user_values  = {}
@@ -627,14 +642,21 @@ if st.session_state.assessment_done:
             else:
                 show_conv = "—"
 
+        is_info = n.get("is_informational", False)
         if converted < t_min:
-            status = "⚠ DEFICIENT"
-            deficient_nutrients.append(nname)
+            if is_info:
+                status = "ℹ Below typical range"
+            else:
+                status = "⚠ DEFICIENT"
+                deficient_nutrients.append(nname)
         elif converted > t_max:
-            status = "▲ EXCESS"
-            excess_nutrients.append(nname)
+            if is_info:
+                status = "ℹ Above typical range"
+            else:
+                status = "▲ EXCESS"
+                excess_nutrients.append(nname)
         else:
-            status = "✓ ADEQUATE"
+            status = "✓ ADEQUATE" if not is_info else "ℹ Within typical range"
 
         rows.append({
             "Nutrient":                  nname,
@@ -663,6 +685,7 @@ if st.session_state.assessment_done:
         if "DEFICIENT" in str(val): return "background-color: #ffd6d6; color: #8b0000; font-weight: bold"
         if "EXCESS"    in str(val): return "background-color: #fff3cd; color: #856404; font-weight: bold"
         if "ADEQUATE"  in str(val): return "background-color: #d6f0d6; color: #006400; font-weight: bold"
+        if "ℹ"         in str(val): return "background-color: #e8f4fd; color: #1565C0; font-style: italic"
         return "color: #888; font-style: italic"
 
     styled = df.style.map(style_status, subset=["Status"])

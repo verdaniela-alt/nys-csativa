@@ -136,8 +136,11 @@ NUTRIENTS = [
          unit="meq/100g",
          hemp_min=10,   hemp_max=40,   mj_min=10,   mj_max=40,
          mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
-         note="Also reported as 'Total Exchange Capacity (M.E.)' — same thing",
-         mm_factor=1.0, allow_unit_conversion=False),
+         note="Also reported as 'Total Exchange Capacity (M.E.)' — same thing. "
+              "CEC is an inherent soil property, not a nutrient. It cannot be directly adjusted; "
+              "it improves gradually through organic matter additions over many seasons.",
+         mm_factor=1.0, allow_unit_conversion=False,
+         is_informational=True),
 
     dict(name="Base Saturation Ca%",
          unit="%",
@@ -152,6 +155,25 @@ NUTRIENTS = [
          mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
          note="K% >5 may suppress Mg uptake",
          mm_factor=1.0, allow_unit_conversion=False),
+
+    dict(name="Base Saturation Mg%",
+         unit="%",
+         hemp_min=10,   hemp_max=20,   mj_min=10,   mj_max=20,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="Mg% <10 may indicate Mg deficiency even when Mg ppm appears adequate. "
+              "Aim for Ca:Mg ratio of 5:1 to 8:1.",
+         mm_factor=1.0, allow_unit_conversion=False),
+
+    dict(name="EC (Soluble Salts)",
+         unit="dS/m",
+         hemp_min=0.0,  hemp_max=2.0,  mj_min=0.0,  mj_max=1.5,
+         mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
+         note="Electrical conductivity = soluble salts. Some labs report as mS/cm (same value) "
+              "or as 'Soluble Salts'. Values above threshold indicate salt buildup — "
+              "most relevant in greenhouse, hoop house, or container production where leaching "
+              "is limited. Field soils rarely exceed safe limits unless heavily amended.",
+         mm_factor=1.0, allow_unit_conversion=False,
+         is_informational=True),
 ]
 
 # ── Unit conversion factors to ppm ──────────────────────────────────────────
