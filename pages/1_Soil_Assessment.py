@@ -463,59 +463,103 @@ def _parse_pdf_page_text(text, selected_lab):
     return values, warnings
 
 
+def _logan_data_offset(table):
+    """
+    Return 1 or 2: the column index offset from col 0 where sample data starts.
+    Newer Logan Labs exports have an empty col 1 separator; older ones have data at col 1.
+    Detect by checking whether col 1 of a known-numeric row contains a number.
+    """
+    for row in table:
+        if not row or len(row) < 3:
+            continue
+        label = str(row[0] or "").strip().lower()
+        if "total exchange capacity" in label or "ph of soil sample" in label:
+            col1 = str(row[1] or "").strip()
+            try:
+                float(col1)
+                return 1  # col 1 has data → classic format
+            except ValueError:
+                return 2  # col 1 is empty/label → new format with separator
+    return 1  # default: classic
+
+
 def _parse_pdf_logan_table(page_obj, col_idx):
     """
     Parse a Logan Labs PDF page (multi-column table) and extract values for one sample column.
     col_idx: 0-based index into the data columns (0 = first sample).
+    Handles both classic format (data at col 1+) and newer export (empty col 1, data at col 2+).
     Returns {nutrient_name: float}, warnings list.
     """
-    import re
     warnings = []
     tables = page_obj.extract_tables()
     if not tables:
         return {}, ["Could not extract table from Logan Labs PDF page."]
 
-    # Logan Labs table: rows are nutrients, columns are samples
-    # Row label is col 0; data starts at col 1
     table = tables[0]
+    offset   = _logan_data_offset(table)
+    data_col = col_idx + offset
 
-    # Build row-label → value mapping for the selected column
-    data_col = col_idx + 1  # +1 to skip row label column
+    # Prefix-matched row labels → nutrient key
+    ROW_MAP = [
+        ("ph of soil sample",       "pH"),
+        ("organic matter, percent", "Organic Matter"),
+        ("sulfur",                  "S (Sulfur)"),
+        ("mehlich iii phosphorous", "P (Phosphorus)"),
+        ("mehlich iii phosphorus",  "P (Phosphorus)"),
+        ("sodium",                  "Na (Sodium)"),
+        ("calcium (60 to 70%)",     "Base Saturation Ca%"),
+        ("magnesium (10 to 20%)",   "Base Saturation Mg%"),
+        ("potassium (2 to 5%)",     "Base Saturation K%"),
+        ("boron (p.p.m.)",          "B (Boron)"),
+        ("iron (p.p.m.)",           "Fe (Iron)"),
+        ("manganese (p.p.m.)",      "Mn (Manganese)"),
+        ("copper (p.p.m.)",         "Cu (Copper)"),
+        ("zinc (p.p.m.)",           "Zn (Zinc)"),
+        ("aluminum (p.p.m.)",       "Al (Aluminum)"),
+        ("total exchange capacity", "CEC"),
+        # classic format: standalone Ca/Mg/K labels (value comes from "Value Found" sub-row)
+        ("calcium",                 "Ca (Calcium)"),
+        ("magnesium",               "Mg (Magnesium)"),
+        ("potassium",               "K (Potassium)"),
+    ]
 
-    ROW_MAP = {
-        "ph of soil sample":        "pH",
-        "organic matter, percent":  "Organic Matter",
-        "sulfur":                   "S (Sulfur)",
-        "mehlich iii phosphorous":  "P (Phosphorus)",
-        "mehlich iii phosphorus":   "P (Phosphorus)",
-        "potassium":                "K (Potassium)",
-        "calcium":                  "Ca (Calcium)",
-        "magnesium":                "Mg (Magnesium)",
-        "sodium":                   "Na (Sodium)",
-        "calcium (60 to 70%)":      "Base Saturation Ca%",
-        "magnesium (10 to 20%)":    "Base Saturation Mg%",
-        "potassium (2 to 5%)":      "Base Saturation K%",
-        "boron (p.p.m.)":           "B (Boron)",
-        "iron (p.p.m.)":            "Fe (Iron)",
-        "manganese (p.p.m.)":       "Mn (Manganese)",
-        "copper (p.p.m.)":          "Cu (Copper)",
-        "zinc (p.p.m.)":            "Zn (Zinc)",
-        "aluminum (p.p.m.)":        "Al (Aluminum)",
-        "total exchange capacity":  "CEC",
-    }
-
-    values = {}
+    values   = {}
     prev_label = None
 
     for row in table:
         if not row or data_col >= len(row):
             continue
-        label_raw = str(row[0] or "").strip().lower()
-        cell_raw  = str(row[data_col] or "").strip()
 
-        # For Ca/Mg/K, Logan has 3 sub-rows: Desired / Value Found / Deficit
-        # We want "Value Found" (second sub-row)
-        if label_raw in ("value found", "") and prev_label in (
+        # Effective label: col 0 if non-empty, else col 1
+        label_col0 = str(row[0] or "").strip().lower()
+        label_col1 = str(row[1] or "").strip().lower() if len(row) > 1 else ""
+        label_raw  = label_col0 if label_col0 else label_col1
+        # Use only the first line for matching (some labels are multi-line)
+        label_key  = label_raw.split("\n")[0].strip()
+
+        cell_raw = str(row[data_col] or "").strip()
+
+        # ── New-format Ca/Mg/K: packed as "Desired\nCALCIUM:\nValue Found\n..." in label,
+        #    with corresponding multi-line value cell "Desired_val\nFound_val[\nDeficit_val]"
+        camgk_hit = False
+        for ion, nutrient in (("calcium:", "Ca (Calcium)"), ("magnesium:", "Mg (Magnesium)"), ("potassium:", "K (Potassium)")):
+            if ion in label_raw:
+                lines = [l.strip() for l in cell_raw.split("\n") if l.strip()]
+                if lines:
+                    # index 1 = Value Found when Desired is shown; index 0 when only Found
+                    val_str = lines[1] if len(lines) >= 2 else lines[0]
+                    try:
+                        values[nutrient] = float(val_str.replace(",", ""))
+                    except ValueError:
+                        pass
+                camgk_hit = True
+                break
+
+        if camgk_hit:
+            continue
+
+        # ── Classic-format Ca/Mg/K: "Value Found" appears as a separate row label
+        if label_key in ("value found", "") and prev_label in (
             "Ca (Calcium)", "Mg (Magnesium)", "K (Potassium)"
         ):
             try:
@@ -524,12 +568,23 @@ def _parse_pdf_logan_table(page_obj, col_idx):
                 pass
             continue
 
-        nutrient = ROW_MAP.get(label_raw)
+        # ── Skip percentage/saturation rows that aren't the three base saturation fields
+        #    (e.g. "Sodium (.5 to 3%)", "Other Bases (Variable)", "Exchangable Hydrogen...")
+        _WANTED_SAT_KEYS = ("calcium (60", "magnesium (10", "potassium (2")
+        if "%" in label_key and not any(label_key.startswith(k) for k in _WANTED_SAT_KEYS):
+            continue
+
+        # ── Standard prefix-matched nutrients
+        nutrient = None
+        for map_key, map_val in ROW_MAP:
+            if label_key.startswith(map_key):
+                nutrient = map_val
+                break
+
         if nutrient:
             prev_label = nutrient
-            # Skip Desired/Deficit rows — only take direct value rows
             if nutrient in ("Ca (Calcium)", "Mg (Magnesium)", "K (Potassium)"):
-                continue  # value comes from "Value Found" sub-row
+                continue  # classic format: wait for "Value Found" sub-row
             try:
                 val = float(cell_raw.replace(",", ""))
                 values[nutrient] = val
@@ -541,7 +596,7 @@ def _parse_pdf_logan_table(page_obj, col_idx):
                     except ValueError:
                         pass
 
-    # P₂O₅ conversion
+    # P₂O₅ → elemental P conversion
     if "P (Phosphorus)" in values:
         raw_p = values["P (Phosphorus)"]
         values["P (Phosphorus)"] = round(raw_p * 0.437, 1)
@@ -599,6 +654,13 @@ def _get_pdf_pages(file_bytes):
                 if candidate and ":" not in candidate:
                     label = candidate
         if not label:
+            # Logan Labs newer export: "Sample Location Row 1-5" (no colon, value on same line)
+            m = re.search(r"Sample\s+Location\s+([^\n:]{1,60})", text, re.IGNORECASE)
+            if m:
+                candidate = m.group(1).strip()
+                if candidate and len(candidate) < 50:
+                    label = candidate
+        if not label:
             # U of Maine: first line "MM/DD/YYYY LABNO SAMPLE_NAME COUNTY SIZE"
             m = re.search(
                 r"^\d{2}/\d{2}/\d{4}\s+\d+\s+(.+?)\s+\w+\s+[\d,]+\s+(?:Acres?|sq)",
@@ -653,21 +715,51 @@ def _parse_maine_numerical_row(text):
 
 
 def _get_logan_column_names(page_obj):
-    """Extract sample column header names from a Logan Labs table."""
+    """
+    Extract sample column header names from a Logan Labs table.
+    Handles both classic (data at col 1+) and newer export (data at col 2+).
+    Combines 'Sample Location' and 'Sample ID' rows for multi-word names.
+    """
     tables = page_obj.extract_tables()
     if not tables:
         return []
-    table = tables[0]
-    # Header rows: first rows typically contain sample location / sample ID
-    # Scan first 3 rows for non-empty cells after col 0
-    names = []
+    table  = tables[0]
+    offset = _logan_data_offset(table)
+
+    # Collect name parts from header rows (Sample Location and Sample ID rows)
+    name_parts = {}  # col_index → list of non-empty string parts
+    header_keywords = ("sample location", "sample id", "sample name", "lab number")
+    rows_used = 0
+    for row in table[:6]:
+        if not row or rows_used >= 2:
+            break
+        label = str(row[0] or row[1] if len(row) > 1 else row[0] or "").strip().lower()
+        if any(kw in label for kw in header_keywords[:2]):  # only location + id rows
+            rows_used += 1
+            for ci in range(offset, len(row)):
+                cell = str(row[ci] or "").strip()
+                if cell and cell not in ("None", ""):
+                    name_parts.setdefault(ci, []).append(cell)
+
+    if name_parts:
+        # Build combined names in column order, skip all-empty columns
+        names = []
+        for ci in sorted(name_parts.keys()):
+            combined = " ".join(name_parts[ci]).strip()
+            if combined:
+                names.append(combined)
+        if names:
+            return names
+
+    # Fallback: pick the row with the most non-empty cells in data columns
+    best = []
     for row in table[:4]:
         if not row:
             continue
-        candidates = [str(c).strip() for c in row[1:] if c and str(c).strip() not in ("", "None")]
-        if candidates and len(candidates) > len(names):
-            names = candidates
-    return names if names else [f"Sample {i+1}" for i in range(5)]
+        candidates = [str(c).strip() for c in row[offset:] if c and str(c).strip() not in ("", "None")]
+        if len(candidates) > len(best):
+            best = candidates
+    return best if best else [f"Sample {i+1}" for i in range(5)]
 
 
 # ── Step 2b UI ────────────────────────────────────────────────────────────────
