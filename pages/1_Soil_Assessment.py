@@ -237,6 +237,18 @@ with st.expander("🌿 Step 2: Crop Type & Laboratory", expanded=True):
             "Set unit selectors to **lbs / acre**. No M3 conversion is applied — "
             "values are compared directly to Modified Morgan lbs/acre targets."
         )
+    elif "Logan Labs" in lab:
+        st.warning(
+            "⚠️ **Logan Labs — P₂O₅ conversion required before entering phosphorus.**  \n\n"
+            "Logan Labs reports phosphorus as **lbs/acre P₂O₅**, not elemental P. "
+            "Entering the value directly will overstate P by ~2.3× and may produce incorrect results.  \n\n"
+            "**Before entering P:** multiply the value on your report by **0.437**  \n"
+            "Example: report shows 200 lbs/ac → enter **87 lbs/ac** (200 × 0.437)  \n\n"
+            "**Units for Logan Labs:**  \n"
+            "• Macronutrients (P, K, Ca, Mg): **lbs / acre** — set the macronutrient unit selector to lbs/acre  \n"
+            "• Micronutrients (B, Cu, Fe, Mn, Zn) and Al: **ppm** — leave micronutrient unit at ppm  \n"
+            "• No MM→M3 conversion is applied — Logan Labs values are already Mehlich III equivalents."
+        )
     elif lab and "Mehlich" in lab:
         st.info(
             "ℹ️ **Mehlich III lab detected.** Values are already M3 equivalents — "
@@ -277,6 +289,8 @@ _UPLOAD_COL_MAP = {
 _TEMPLATE_CSV = (
     "Sample ID,pH,Organic Matter (%),P,K,Ca,Mg,S,Zn,Mn,Fe,Cu,B,Na,Al,CEC,Ca%,K%\n"
     "# Units: enter ppm for Mehlich III labs; lbs/acre for Modified Morgan labs\n"
+    "# IMPORTANT - Logan Labs users: P is reported as P2O5 lbs/acre on your report.\n"
+    "# Multiply your P value by 0.437 before entering here (e.g. 200 lbs/ac P2O5 -> 87 lbs/ac elemental P).\n"
     "Sample-1,,,,,,,,,,,,,,,,\n"
 )
 
@@ -290,7 +304,7 @@ def _find_header_row(df_raw):
     return 0
 
 def _parse_lab_file(file_bytes, filename):
-    """Parse CSV or Excel lab report. Returns list of (sample_id, {nname: value}) dicts."""
+    """Parse CSV or Excel lab report. Returns (list of {sample_id, values}, error)."""
     import io
     try:
         if filename.lower().endswith(".csv"):
@@ -300,11 +314,9 @@ def _parse_lab_file(file_bytes, filename):
     except Exception as e:
         return None, str(e)
 
-    # Find header row
     hdr_idx = _find_header_row(df_raw)
     headers = [str(v).strip() for v in df_raw.iloc[hdr_idx]]
 
-    # Map headers to nutrient names
     col_to_nutrient = {}
     sample_col = None
     for ci, h in enumerate(headers):
@@ -340,19 +352,335 @@ def _parse_lab_file(file_bytes, filename):
     return results, None
 
 
-with st.expander("📎 Step 2b — Upload Lab Report (CSV or Excel, optional)", expanded=False):
+# ── PDF parsing helpers ───────────────────────────────────────────────────────
+
+# Regex patterns: nutrient name → list of patterns tried in order
+_PDF_PATTERNS = [
+    ("pH",                   [r"(?:Soil\s+)?pH(?:\s+of\s+Soil\s+Sample)?\s+(\d+\.?\d*)"]),
+    ("Organic Matter",       [r"(?:Organic\s+Matter|%\s*OM)[^<\n]*?(\d+\.?\d*)\s*%",
+                              r"(?:%\s*)?Organic\s+Matter[,\s%]*(\d+\.?\d*)",
+                              r"%\s*OM\s+(\d+\.?\d*)",
+                              r"Organic\s+Matter\s*\([^)]*\)\s+(\d+\.?\d*)"]),
+    ("P (Phosphorus)",       [r"Phosphorus?\s*(?:\(P\))?\s*(?:\[Mehlich\s*III\])?\s+(\d+\.?\d*)",
+                              r"Mehlich\s+III\s+Phospho\w+[^<\n]*?(\d+\.?\d*)",
+                              r"Phosphorus\s*\([^)]*\)\s+(\d+\.?\d*)"]),
+    ("K (Potassium)",        [r"Potassium\s*(?:\(K\))?\s+(\d+\.?\d*)"]),
+    ("Ca (Calcium)",         [r"Calcium\s*(?:\(Ca\))?\s+(?:lbs/acre\s+)?(\d[\d,]*\.?\d*)"]),
+    ("Mg (Magnesium)",       [r"Magnesium\s*(?:\(Mg\))?\s+(?:lbs/acre\s+)?(\d+\.?\d*)"]),
+    ("S (Sulfur)",           [r"Sulfur\s*(?:\(S\))?\s+(\d+\.?\d*)",
+                              r"Sulfur\s*\([^)]*\)\s+(\d+\.?\d*)"]),
+    ("Fe (Iron)",            [r"Iron\s*(?:\(Fe\))?[,\s]*(?:lbs/acre)?\s+(\d+\.?\d*)",
+                              r"Iron\s*\([^)]*\)\s+(\d+\.?\d*)"]),
+    ("Mn (Manganese)",       [r"Manganese\s*(?:\(Mn\))?[,\s]*(?:lbs/acre)?\s+(\d+\.?\d*)",
+                              r"Manganese\s*\([^)]*\)\s+(\d+\.?\d*)"]),
+    ("Zn (Zinc)",            [r"Zinc\s*(?:\(Zn\))?[,\s]*(?:lbs/acre)?\s+(\d+\.?\d*)",
+                              r"Zinc\s*\([^)]*\)\s+(\d+\.?\d*)"]),
+    ("Cu (Copper)",          [r"Copper\s*(?:\(Cu\))?[,\s]*(?:lbs/acre)?\s+(\d+\.?\d*)",
+                              r"Copper\s*\([^)]*\)\s+(\d+\.?\d*)"]),
+    ("B (Boron)",            [r"Boron\s*(?:\(B\))?\s+(\d+\.?\d*)",
+                              r"Boron\s*\([^)]*\)\s+(\d+\.?\d*)"]),
+    ("Na (Sodium)",          [r"Sodium\s*(?:\(Na\))?\s+(\d+\.?\d*)"]),
+    ("Al (Aluminum)",        [r"Alum(?:inum|inium)\s*(?:\(Al\))?[,\s]*(?:lbs/acre|ppm)?\s+(\d+\.?\d*)"]),
+    ("CEC",                  [r"(?:Total\s+)?(?:Exchange\s+Capacity|EC\s*[\(\[]?Cation|CEC)[^\n]*?(\d+\.?\d*)\s*meq",
+                              r"Total\s+Exchange\s+Capacity[^\n]*?(\d+\.?\d*)"]),
+    ("Base Saturation Ca%",  [r"(?:Calcium|Ca)\s*\(60\s*to\s*70%\)\s+(\d+\.?\d*)",
+                              r"%\s*Calcium\s*\(?60[–-]70%\)?\s+(\d+\.?\d*)",
+                              r"Calcium\s*\(%\s*Sat\w*\)\s*(\d+\.?\d*)"]),
+    ("Base Saturation K%",   [r"(?:Potassium|K)\s*\(2\s*to\s*5%\)\s+(\d+\.?\d*)",
+                              r"%\s*Potassium\s*\(?2[–-]5%\)?\s+(\d+\.?\d*)",
+                              r"Potassium\s*\(%\s*Sat\w*\)\s*(\d+\.?\d*)"]),
+    ("Base Saturation Mg%",  [r"(?:Magnesium|Mg)\s*\(10\s*to\s*20%\)\s+(\d+\.?\d*)",
+                              r"%\s*Magnesium\s*\(?10[–\-]20%\)?\s+(\d+\.?\d*)",
+                              r"(?:Magnesium|Mg)\s*\(10[–\-]20%\)\s+(\d+\.?\d*)",
+                              r"Magnesium\s*\(%\s*Sat\w*\)\s*(\d+\.?\d*)"]),
+    ("EC (Soluble Salts)",   [r"Soluble\s+Salts[,\s]*(?:mmhos/cm|mS/cm|dS/m)?\s+(\d+\.?\d*)"]),
+    ("Buffer pH",            [r"Buffer\s+pH\s+(\d+\.?\d*)"]),
+]
+
+def _parse_pdf_page_text(text, selected_lab):
+    """
+    Extract nutrient values from one page of PDF text using keyword regex.
+    Returns {nutrient_name: float}, warnings list.
+    """
+    import re
+    values = {}
+    warnings = []
+
+    # Check for below-detection-limit tokens so we can skip them cleanly
+    bdl_pattern = re.compile(r"<\s*0?\.\d+|ND|BDL|not\s+detected", re.IGNORECASE)
+
+    for nutrient, patterns in _PDF_PATTERNS:
+        if nutrient == "Buffer pH":
+            continue  # informational only, not an app input field
+        for pat in patterns:
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                raw = m.group(0)
+                # Check if the match is preceded by a BDL token on the same line
+                line_start = text.rfind("\n", 0, m.start()) + 1
+                line = text[line_start: text.find("\n", m.end())]
+                if bdl_pattern.search(line):
+                    warnings.append(f"**{nutrient}**: below detection limit — left blank.")
+                    break
+                # Strip commas (e.g. "3,076" → 3076)
+                val_str = m.group(1).replace(",", "")
+                try:
+                    val = float(val_str)
+                    # Calcium sanity: Dairy One reports Ca as lbs/acre (can be 3000+),
+                    # New Age Labs reports in ppm (also can be 1500+) — both fine
+                    values[nutrient] = val
+                    break
+                except ValueError:
+                    pass
+
+    # Apply P₂O₅ → elemental P conversion for Logan Labs
+    is_logan = "Logan" in selected_lab
+    p_converted = False
+    if is_logan and "P (Phosphorus)" in values:
+        raw_p = values["P (Phosphorus)"]
+        values["P (Phosphorus)"] = round(raw_p * 0.437, 1)
+        warnings.append(
+            f"**P (Phosphorus)**: Logan Labs reports P as P₂O₅. "
+            f"Raw value {raw_p} lbs/ac × 0.437 = **{values['P (Phosphorus)']} lbs/ac elemental P** — "
+            f"this conversion was applied automatically."
+        )
+        p_converted = True
+
+    # University of Maine Soil Testing Service: K, Ca, Mg (lbs/acre) and CEC
+    # are only in the numerical results row — supplement standard pattern results
+    if _is_maine_soil_testing_pdf(text):
+        maine_vals = _parse_maine_numerical_row(text)
+        for k, v in maine_vals.items():
+            if k not in values:
+                values[k] = v
+        if maine_vals:
+            warnings.append(
+                "**University of Maine Soil Testing Service format detected.**  \n"
+                "K, Ca, and Mg values are in **lbs/acre** — set the macronutrient unit "
+                "selector to **lbs/acre** before running the assessment."
+            )
+
+    return values, warnings
+
+
+def _parse_pdf_logan_table(page_obj, col_idx):
+    """
+    Parse a Logan Labs PDF page (multi-column table) and extract values for one sample column.
+    col_idx: 0-based index into the data columns (0 = first sample).
+    Returns {nutrient_name: float}, warnings list.
+    """
+    import re
+    warnings = []
+    tables = page_obj.extract_tables()
+    if not tables:
+        return {}, ["Could not extract table from Logan Labs PDF page."]
+
+    # Logan Labs table: rows are nutrients, columns are samples
+    # Row label is col 0; data starts at col 1
+    table = tables[0]
+
+    # Build row-label → value mapping for the selected column
+    data_col = col_idx + 1  # +1 to skip row label column
+
+    ROW_MAP = {
+        "ph of soil sample":        "pH",
+        "organic matter, percent":  "Organic Matter",
+        "sulfur":                   "S (Sulfur)",
+        "mehlich iii phosphorous":  "P (Phosphorus)",
+        "mehlich iii phosphorus":   "P (Phosphorus)",
+        "potassium":                "K (Potassium)",
+        "calcium":                  "Ca (Calcium)",
+        "magnesium":                "Mg (Magnesium)",
+        "sodium":                   "Na (Sodium)",
+        "calcium (60 to 70%)":      "Base Saturation Ca%",
+        "magnesium (10 to 20%)":    "Base Saturation Mg%",
+        "potassium (2 to 5%)":      "Base Saturation K%",
+        "boron (p.p.m.)":           "B (Boron)",
+        "iron (p.p.m.)":            "Fe (Iron)",
+        "manganese (p.p.m.)":       "Mn (Manganese)",
+        "copper (p.p.m.)":          "Cu (Copper)",
+        "zinc (p.p.m.)":            "Zn (Zinc)",
+        "aluminum (p.p.m.)":        "Al (Aluminum)",
+        "total exchange capacity":  "CEC",
+    }
+
+    values = {}
+    prev_label = None
+
+    for row in table:
+        if not row or data_col >= len(row):
+            continue
+        label_raw = str(row[0] or "").strip().lower()
+        cell_raw  = str(row[data_col] or "").strip()
+
+        # For Ca/Mg/K, Logan has 3 sub-rows: Desired / Value Found / Deficit
+        # We want "Value Found" (second sub-row)
+        if label_raw in ("value found", "") and prev_label in (
+            "Ca (Calcium)", "Mg (Magnesium)", "K (Potassium)"
+        ):
+            try:
+                values[prev_label] = float(cell_raw.replace(",", ""))
+            except ValueError:
+                pass
+            continue
+
+        nutrient = ROW_MAP.get(label_raw)
+        if nutrient:
+            prev_label = nutrient
+            # Skip Desired/Deficit rows — only take direct value rows
+            if nutrient in ("Ca (Calcium)", "Mg (Magnesium)", "K (Potassium)"):
+                continue  # value comes from "Value Found" sub-row
+            try:
+                val = float(cell_raw.replace(",", ""))
+                values[nutrient] = val
+            except ValueError:
+                if cell_raw.startswith(">"):
+                    try:
+                        values[nutrient] = float(cell_raw[1:].replace(",", ""))
+                        warnings.append(f"**{nutrient}**: reported as '{cell_raw}' — entered as {values[nutrient]}.")
+                    except ValueError:
+                        pass
+
+    # P₂O₅ conversion
+    if "P (Phosphorus)" in values:
+        raw_p = values["P (Phosphorus)"]
+        values["P (Phosphorus)"] = round(raw_p * 0.437, 1)
+        warnings.append(
+            f"**P (Phosphorus)**: Logan Labs reports P as P₂O₅. "
+            f"Raw value {raw_p} lbs/ac × 0.437 = **{values['P (Phosphorus)']} lbs/ac elemental P** — "
+            f"applied automatically."
+        )
+
+    return values, warnings
+
+
+def _get_pdf_pages(file_bytes):
+    """
+    Open PDF with pdfplumber and return list of {page_num, label, text, page_obj}.
+    Skips pages that appear to be blank or cover letters (no nutrient data).
+    """
+    import pdfplumber, io, re
+    results = []
+    try:
+        pdf = pdfplumber.open(io.BytesIO(file_bytes))
+    except Exception as e:
+        return None, str(e)
+
+    nutrient_signals = re.compile(
+        r"phospho|potassium|calcium|magnesium|organic matter|pH|sulfur|boron|iron|manganese",
+        re.IGNORECASE
+    )
+
+    for i, page in enumerate(pdf.pages):
+        text = page.extract_text() or ""
+        has_data = bool(nutrient_signals.search(text))
+        # Build a label from sample location if detectable
+        label = None
+        for pat in [r"Field/Location:\s*(.+)", r"Field Name:\s*(.+)"]:
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                candidate = m.group(1).strip()
+                if candidate and ":" not in candidate:
+                    label = candidate
+                    break
+        if not label:
+            # New Age Labs: "Sample Location: Collected By:\nNorth Field ..."
+            m = re.search(r"Sample Location:[^\n]*\n([^\n]+)", text, re.IGNORECASE)
+            if m:
+                # First word(s) before a multi-space gap or another name
+                raw = m.group(1).strip()
+                # Take only the first field (before 2+ spaces)
+                parts = re.split(r"\s{2,}", raw)
+                label = parts[0].strip() if parts else raw
+        if not label:
+            m = re.search(r"Sample Name:\s*(.+)", text, re.IGNORECASE)
+            if m:
+                candidate = m.group(1).strip()
+                if candidate and ":" not in candidate:
+                    label = candidate
+        if not label:
+            # U of Maine: first line "MM/DD/YYYY LABNO SAMPLE_NAME COUNTY SIZE"
+            m = re.search(
+                r"^\d{2}/\d{2}/\d{4}\s+\d+\s+(.+?)\s+\w+\s+[\d,]+\s+(?:Acres?|sq)",
+                text, re.MULTILINE | re.IGNORECASE
+            )
+            if m:
+                label = m.group(1).strip()
+        results.append({
+            "page_num":  i + 1,
+            "label":     label or f"Page {i + 1}",
+            "text":      text,
+            "page_obj":  page,
+            "has_data":  has_data,
+        })
+
+    pdf.close()
+    return results, None
+
+
+def _is_logan_pdf(text):
+    """Detect Logan Labs format (multi-column table on one page)."""
+    import re
+    return bool(re.search(r"logan\s+labs", text, re.IGNORECASE)) or \
+           bool(re.search(r"mehlich\s+iii\s+phospho", text, re.IGNORECASE) and
+                re.search(r"p\.p\.m\.", text, re.IGNORECASE))
+
+
+def _is_maine_soil_testing_pdf(text):
+    """Detect University of Maine Soil Testing Service format."""
+    import re
+    return bool(re.search(r"maine\s+soil\s+testing\s+service|university\s+of\s+maine", text, re.IGNORECASE))
+
+
+def _parse_maine_numerical_row(text):
+    """
+    Extract K, Ca, Mg (lbs/acre) and CEC from the U of Maine 'Level Found' numerical row.
+    Row format: Level [pH] [LimeIdx] [P-lb/A] [K-lb/A] [Mg-lb/A] [Ca-lb/A] [CEC(me/100g)] ...
+    Returns dict of extracted values (may be empty).
+    """
+    import re
+    result = {}
+    m = re.search(
+        r"Level\s+[\d.]+\s+[\d.]+\s+[\d.]+\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d.]+)",
+        text
+    )
+    if m:
+        result["K (Potassium)"]  = float(m.group(1).replace(",", ""))
+        result["Mg (Magnesium)"] = float(m.group(2).replace(",", ""))
+        result["Ca (Calcium)"]   = float(m.group(3).replace(",", ""))
+        result["CEC"]            = float(m.group(4))
+    return result
+
+
+def _get_logan_column_names(page_obj):
+    """Extract sample column header names from a Logan Labs table."""
+    tables = page_obj.extract_tables()
+    if not tables:
+        return []
+    table = tables[0]
+    # Header rows: first rows typically contain sample location / sample ID
+    # Scan first 3 rows for non-empty cells after col 0
+    names = []
+    for row in table[:4]:
+        if not row:
+            continue
+        candidates = [str(c).strip() for c in row[1:] if c and str(c).strip() not in ("", "None")]
+        if candidates and len(candidates) > len(names):
+            names = candidates
+    return names if names else [f"Sample {i+1}" for i in range(5)]
+
+
+# ── Step 2b UI ────────────────────────────────────────────────────────────────
+with st.expander("📎 Step 2b — Upload Lab Report (PDF, CSV, or Excel — optional)", expanded=False):
     st.markdown(
         "Upload your lab report to auto-fill the fields below. "
-        "Accepted formats: **CSV** or **Excel (.xlsx)**. "
-        "The file must have a header row with column names like: "
-        "`pH`, `P`, `K`, `Ca`, `Mg`, `S`, `Zn`, `Mn`, `Fe`, `Al`, `OM`, `CEC` etc. "
-        "Multiple samples are supported — pick the sample you want after upload."
+        "Accepted formats: **PDF**, **CSV**, or **Excel (.xlsx)**."
     )
 
     up_col1, up_col2 = st.columns([3, 1])
     with up_col1:
         lab_file = st.file_uploader(
-            "Choose file", type=["csv", "xlsx"], key="lab_upload",
+            "Choose file", type=["pdf", "csv", "xlsx"], key="lab_upload",
             label_visibility="collapsed",
         )
     with up_col2:
@@ -365,27 +693,165 @@ with st.expander("📎 Step 2b — Upload Lab Report (CSV or Excel, optional)", 
         )
 
     if lab_file is not None:
-        parsed, err = _parse_lab_file(lab_file.read(), lab_file.name)
-        if err:
-            st.error(f"Could not parse file: {err}")
-        else:
-            sample_ids = [r["sample_id"] for r in parsed]
-            if len(parsed) > 1:
-                chosen_id = st.selectbox("Select sample", sample_ids, key="upload_sample_sel")
-                chosen = next(r for r in parsed if r["sample_id"] == chosen_id)
+        file_bytes = lab_file.read()
+        fname = lab_file.name.lower()
+
+        # ── PDF path ──────────────────────────────────────────────────────────
+        if fname.endswith(".pdf"):
+            pages, pdf_err = _get_pdf_pages(file_bytes)
+
+            if pdf_err:
+                st.error(f"Could not read PDF: {pdf_err}")
+
+            elif not pages:
+                st.error("No pages found in PDF.")
+
             else:
-                chosen = parsed[0]
-                st.success(f"Parsed: **{chosen['sample_id']}** — {len(chosen['values'])} nutrient columns detected.")
+                data_pages = [p for p in pages if p["has_data"]]
+                all_pages  = pages
 
-            # Preview table
-            preview_rows = [{"Nutrient": k, "Value from file": v} for k, v in chosen["values"].items()]
-            st.dataframe(pd.DataFrame(preview_rows), hide_index=True, use_container_width=True)
+                if not data_pages:
+                    st.warning(
+                        "⚠️ No nutrient data detected in this PDF. "
+                        "It may be a scanned image (not a digital PDF). "
+                        "Please use the CSV template instead, or contact your lab for a digital copy."
+                    )
+                else:
+                    # Page selector — show only pages with detected data, but let user override
+                    page_options = {
+                        f"Page {p['page_num']} — {p['label']}": p
+                        for p in data_pages
+                    }
+                    if len(page_options) > 1:
+                        st.info(
+                            f"Found **{len(data_pages)} page(s) with soil data** in this PDF. "
+                            "Select the page that contains the sample you want to analyze."
+                        )
+                        selected_label = st.selectbox(
+                            "Select page / sample",
+                            list(page_options.keys()),
+                            key="pdf_page_sel",
+                        )
+                        selected_page = page_options[selected_label]
+                    else:
+                        selected_page = data_pages[0]
+                        st.success(f"Detected soil data on **Page {selected_page['page_num']}** — {selected_page['label']}.")
 
-            if st.button("✅ Apply to input fields below", type="primary", use_container_width=True):
-                for nname, val in chosen["values"].items():
-                    st.session_state[f"nutrient_{nname}"] = val
-                st.success("Fields populated — scroll down to review and adjust if needed.")
-                st.rerun()
+                    page_text = selected_page["text"]
+                    page_obj  = selected_page["page_obj"]
+
+                    # Logan Labs: multi-column table → column selector
+                    is_logan = _is_logan_pdf(page_text)
+                    col_warnings = []
+
+                    if is_logan:
+                        col_names = _get_logan_column_names(page_obj)
+                        if len(col_names) > 1:
+                            st.info(
+                                f"Logan Labs format detected — **{len(col_names)} samples** found on this page. "
+                                "Select the sample column you want to analyze."
+                            )
+                            chosen_col_name = st.selectbox(
+                                "Select sample column",
+                                col_names,
+                                key="pdf_logan_col_sel",
+                            )
+                            col_idx = col_names.index(chosen_col_name)
+                        else:
+                            col_idx = 0
+                            chosen_col_name = col_names[0] if col_names else "Sample 1"
+
+                        parsed_vals, col_warnings = _parse_pdf_logan_table(page_obj, col_idx)
+                        sample_label = f"{selected_page['label']} — {chosen_col_name}"
+                    else:
+                        parsed_vals, col_warnings = _parse_pdf_page_text(page_text, lab)
+                        sample_label = selected_page["label"]
+
+                    if not parsed_vals:
+                        st.error(
+                            "Could not extract nutrient values from the selected page. "
+                            "The PDF may be a scanned image or use an unsupported layout. "
+                            "Please enter values manually or use the CSV template."
+                        )
+                    else:
+                        # ── Conversion warnings ───────────────────────────────
+                        if col_warnings:
+                            for w in col_warnings:
+                                st.info(f"ℹ️ {w}")
+
+                        # ── Preview table ─────────────────────────────────────
+                        st.markdown(f"**Extracted values — {sample_label}**")
+                        preview_rows = [
+                            {"Nutrient": k, "Value extracted from PDF": v}
+                            for k, v in parsed_vals.items()
+                        ]
+                        st.dataframe(
+                            pd.DataFrame(preview_rows),
+                            hide_index=True,
+                            use_container_width=True,
+                        )
+
+                        # ── User responsibility confirmation ──────────────────
+                        st.warning(
+                            "⚠️ **Please verify these values before applying.**  \n\n"
+                            "Check that each value above matches what is printed on your lab report "
+                            f"for the sample you selected (**{sample_label}**). "
+                            "PDF extraction is automated and may occasionally misread values — "
+                            "particularly for scanned reports, unusual formatting, or detection-limit entries.  \n\n"
+                            "**By clicking 'Apply' below, you confirm that you have reviewed these values "
+                            "and that they correspond to the correct sample and page. "
+                            "The accuracy of your soil assessment depends entirely on the accuracy of the data entered.**"
+                        )
+
+                        if st.button(
+                            "✅ I have reviewed the values — Apply to input fields",
+                            type="primary",
+                            use_container_width=True,
+                            key="pdf_apply_btn",
+                        ):
+                            for nname, val in parsed_vals.items():
+                                st.session_state[f"nutrient_{nname}"] = val
+                            st.success(
+                                f"✅ Fields populated from **{sample_label}**. "
+                                "Scroll down to review and adjust any values before running the assessment."
+                            )
+                            st.rerun()
+
+        # ── CSV / Excel path (unchanged) ──────────────────────────────────────
+        else:
+            parsed, err = _parse_lab_file(file_bytes, fname)
+            if err:
+                st.error(f"Could not parse file: {err}")
+            else:
+                sample_ids = [r["sample_id"] for r in parsed]
+                if len(parsed) > 1:
+                    chosen_id = st.selectbox("Select sample", sample_ids, key="upload_sample_sel")
+                    chosen = next(r for r in parsed if r["sample_id"] == chosen_id)
+                else:
+                    chosen = parsed[0]
+                    st.success(f"Parsed: **{chosen['sample_id']}** — {len(chosen['values'])} nutrient columns detected.")
+
+                preview_rows = [{"Nutrient": k, "Value from file": v} for k, v in chosen["values"].items()]
+                st.dataframe(pd.DataFrame(preview_rows), hide_index=True, use_container_width=True)
+
+                st.warning(
+                    "⚠️ **Please verify these values before applying.**  \n\n"
+                    "Check that each value matches your lab report for the correct sample. "
+                    "**By clicking 'Apply' below, you confirm that you have reviewed these values "
+                    "and that they correspond to the correct sample. "
+                    "The accuracy of your soil assessment depends entirely on the accuracy of the data entered.**"
+                )
+
+                if st.button(
+                    "✅ I have reviewed the values — Apply to input fields",
+                    type="primary",
+                    use_container_width=True,
+                    key="csv_apply_btn",
+                ):
+                    for nname, val in chosen["values"].items():
+                        st.session_state[f"nutrient_{nname}"] = val
+                    st.success("Fields populated — scroll down to review and adjust if needed.")
+                    st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 3 — SOIL TEST INPUT
@@ -495,6 +961,25 @@ with st.expander("🧪 Step 3: Enter Soil Test Results", expanded=True):
         "Base Saturation K%":    "Always enter as %. This is the % of CEC occupied by K ions — different from K in lbs/acre.",
         "Base Saturation Mg%":   "Always enter as %. This is the % of CEC occupied by Mg ions. Target 10–20%. Leave blank if not on your report.",
     }
+
+    # Override P help text for Logan Labs to warn about P₂O₅
+    if "Logan Labs" in lab:
+        help_texts["P (Phosphorus)"] = (
+            "⚠️ Logan Labs reports P as lbs/acre P₂O₅ (not elemental P). "
+            "Multiply the value on your report by 0.437 before entering here. "
+            "Example: report shows 200 lbs/ac → enter 87 lbs/ac. "
+            "Set the macronutrient unit selector above to lbs/acre."
+        )
+        help_texts["K (Potassium)"] = (
+            "Logan Labs reports K in lbs/acre. Enter the value directly. "
+            "Set the macronutrient unit selector above to lbs/acre."
+        )
+        help_texts["Ca (Calcium)"] = (
+            "Logan Labs reports Ca in lbs/acre. Enter the value directly and set unit to lbs/acre."
+        )
+        help_texts["Mg (Magnesium)"] = (
+            "Logan Labs reports Mg in lbs/acre. Enter the value directly and set unit to lbs/acre."
+        )
 
     groups = {
         "Basic Properties": ["pH", "Organic Matter"],
@@ -690,6 +1175,32 @@ if st.session_state.assessment_done:
 
     styled = df.style.map(style_status, subset=["Status"])
     st.dataframe(styled, use_container_width=True, hide_index=True)
+
+    # ── Contextual alerts based on pH and M3 extraction caveats ──────────────
+    ph_val = user_values.get("pH")
+
+    if ph_val and ph_val > 7.0:
+        st.warning(
+            f"⚠️ **High pH alert (pH {ph_val:.1f}):** Above pH 7.0, Mehlich III extraction "
+            "may report adequate or excess Fe, Mn, Zn, and B even when these nutrients are not "
+            "plant-available. **Address pH first** — lower it to 6.2–6.8 with elemental sulfur "
+            "or acidifying fertilizers before acting on micronutrient status. "
+            "Gypsum (calcium sulfate) is a useful option to add S and Ca without raising pH further."
+        )
+
+    _fe_excess = "Fe (Iron)" in excess_nutrients
+    _mn_excess = "Mn (Manganese)" in excess_nutrients
+    if (_fe_excess or _mn_excess) and (ph_val is None or ph_val < 7.5):
+        _flagged = " and ".join(
+            n for n, f in [("Fe", _fe_excess), ("Mn", _mn_excess)] if f
+        )
+        st.info(
+            f"ℹ️ **{_flagged} flagged as EXCESS:** Mehlich III routinely over-extracts Fe and Mn "
+            "from mineral soils — values above the target range are common in healthy soils and "
+            "often do not indicate actual toxicity. Before acting, check for visual symptoms "
+            "(Fe: leaf bronzing or dark spots; Mn: necrotic spots between veins). "
+            "If pH is in the 6.2–6.8 range and plants look healthy, no correction is typically needed."
+        )
 
     # ── Download buttons ─────────────────────────────────────────────────────
     from io import BytesIO
@@ -971,6 +1482,22 @@ High K suppresses Mg uptake — a common cause of Mg deficiency in NY cannabis f
 
 **Micronutrients** (Zn, Mn, Fe, Cu, B) are primarily affected by pH.
 Foliar applications are the fastest in-season correction.
+Note: Mehlich III tends to over-extract Fe and Mn from mineral soils — "excess" results for
+these two nutrients are common and do not automatically indicate a toxicity problem.
+Always confirm with plant tissue symptoms before correcting.
+
+---
+**Lab-specific notes:**
+
+**Logan Labs:** Phosphorus is reported as **lbs/acre P₂O₅**, not elemental P.
+Multiply the P value on your Logan Labs report by **0.437** before entering it in this tool
+(e.g. 200 lbs/ac P₂O₅ → enter 87 lbs/ac). Entering P₂O₅ directly will overstate phosphorus
+by ~2.3×, which can flip a correct DEFICIENT call to ADEQUATE or ADEQUATE to EXCESS.
+
+**K% base saturation targets:** This tool uses a 2–5% target based on cannabis-calibrated
+Mehlich III data (Cornell NMSP). Some independent agronomists and labs use 4–6% or 6–8%
+for specialty crops. If your lab report says K% is "low" at 4–5%, that is not necessarily a
+disagreement — it reflects a different calibration standard, not an error.
 
 For questions about NY-specific hemp or cannabis licensing and agronomy,
 contact your local Cornell Cooperative Extension office.

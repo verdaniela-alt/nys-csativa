@@ -92,7 +92,10 @@ NUTRIENTS = [
          unit="ppm",
          hemp_min=5,    hemp_max=50,   mj_min=5,    mj_max=50,
          mm_hemp_min=5,  mm_hemp_max=50,  mm_mj_min=5,  mm_mj_max=50,
-         note="Availability drops above pH 7",
+         note="Availability drops sharply above pH 7 — deficiency at high pH is common even "
+              "when Mehlich III ppm appears adequate or excess. Mehlich III can also over-extract "
+              "Mn from acidic soils; elevated ppm at pH < 6.0 is worth monitoring for toxicity "
+              "symptoms (necrotic leaf spots) before treating.",
          mm_factor=1.0, allow_unit_conversion=True),
 
     dict(name="Fe (Iron)",
@@ -100,7 +103,10 @@ NUTRIENTS = [
          hemp_min=20,   hemp_max=100,  mj_min=20,   mj_max=100,
          # Agro-One Fe reported without unit (likely ppm) — treat as ppm, no MM target
          mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
-         note="High Fe can tie up Mn and Zn. Agro-One Fe is reported without unit — enter as ppm.",
+         note="Mehlich III frequently over-extracts Fe from mineral soils — values above 100 ppm "
+              "are common and often do not indicate toxicity. Focus on pH management (target 6.2–6.8) "
+              "rather than reducing Fe inputs. High Fe can compete with Mn and Zn uptake. "
+              "Agro-One Modified Morgan Fe is reported without a unit label — enter as ppm.",
          mm_factor=1.0, allow_unit_conversion=True),
 
     dict(name="Cu (Copper)",
@@ -129,7 +135,10 @@ NUTRIENTS = [
          hemp_min=0,    hemp_max=50,   mj_min=0,    mj_max=30,
          # Agro-One reports Al in lbs/acre; elevated Al indicates low pH
          mm_hemp_min=0,  mm_hemp_max=100, mm_mj_min=0,  mm_mj_max=75,
-         note="Elevated Al indicates low pH; root toxicity risk",
+         note="Elevated Al indicates low pH; root toxicity risk is highest at pH < 5.5. "
+              "At pH > 6.0, Mehlich III may still extract some Al — this residual background "
+              "level is not agronomically meaningful. Al is most useful here as a pH-proxy "
+              "signal: very high Al always means soil pH needs attention.",
          mm_factor=1.0, allow_unit_conversion=True),
 
     dict(name="CEC",
@@ -146,14 +155,19 @@ NUTRIENTS = [
          unit="%",
          hemp_min=65,   hemp_max=80,   mj_min=65,   mj_max=80,
          mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
-         note="Ca should dominate cation exchange sites",
+         note="Ca should dominate cation exchange sites. Ca% above 80% is common in NY soils "
+              "at proper pH and rarely requires correction on its own — if absolute Ca ppm and "
+              "pH are in range, high Ca% is not a problem. Prioritize pH and Ca ppm over this %.",
          mm_factor=1.0, allow_unit_conversion=False),
 
     dict(name="Base Saturation K%",
          unit="%",
          hemp_min=2,    hemp_max=5,    mj_min=2,    mj_max=5,
          mm_hemp_min=None, mm_hemp_max=None, mm_mj_min=None, mm_mj_max=None,
-         note="K% >5 may suppress Mg uptake",
+         note="K% >5 may suppress Mg uptake. Target 2–5% is based on cannabis-calibrated "
+              "Mehlich III data (Cornell NMSP). Note: some agronomists and labs target 4–6% "
+              "or 6–8% for specialty crops — values in the 4–6% range may be acceptable if "
+              "Mg levels and the Ca:Mg ratio are adequate.",
          mm_factor=1.0, allow_unit_conversion=False),
 
     dict(name="Base Saturation Mg%",
